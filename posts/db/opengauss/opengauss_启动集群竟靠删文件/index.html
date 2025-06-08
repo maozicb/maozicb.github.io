@@ -1,0 +1,365 @@
+<!doctype html>
+
+
+
+
+
+
+
+<html
+  class="not-ready lg:text-base"
+  style="--bg:#faf8f1"
+  lang="en-us"
+  dir="ltr"
+><head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, shrink-to-fit=no"
+  />
+
+  
+  <title>OpenGauss 启动集群竟靠删文件？这是什么「逆向操作」 - 数据库的路上</title>
+
+  
+  <meta name="theme-color" />
+
+  <meta name="description" content="集群管理软件介绍
+OM
+运维管理模块(OperationManager)提供openGauss日常运维、配置管理的管理接口和工具.使用python语言编写,底层调用cm相关命令
+CM
+（Cluster Manager）是一款集群资源管理软件。支持自定义资源监控，提供了数据库主备的状态监控、网络通信故障监控、文件系统故障监控、故障自动主备切换等能力。
+CM由cm_server,cm_agent,cm_ctl组成。
+
+cm_agent是部署在数据库每个主机上，用来启停和监控各个数据库实例进程的数据库管理组件。
+cm_server是用来进行数据库实例管理和实例仲裁的组件。
+
+
+cm_ctl是openGauss提供的用来控制数据库实例服务的工具。该工具主要供OM调用，及数据库实例服务自恢复时使用。
+om_monitor 是OpenGauss 后台守护进程,由crontab 管理,可以自动启动
+
+集群启动原理
+启动命令
+在gs_om -t start 启动集群中,实际最后调用的是cm_ctl  start
+cm_ctl  start 源码函数调用
+调用do_start()
+
+调用StartWholeCluster()  启动集群
+ if (g_commandOperationInstanceId == 0 &amp;&amp; g_command_operation_azName == NULL &amp;&amp; g_commandOperationNodeId == 0) 
+ ...
+ CM_RETURN_IFERR(StartWholeCluster());
+
+
+检查 集群的状态 CheckClusterRunningStatus()
+
+检查状态的核心命令是通过pssh 读取hosts($GAUSSHOME/bin/hosts文件)列表,并发在所有节点执行 cm_ctl check -B cm_agent -T /opt/huawei/install/app/bin/cm_agent  命令
+
+
+启动集群 ,调用 start_cluster()函数
+start_cluster() 函数的核心原理是通过pssh 在集群每个节点执行rm 命令删除cluster_manual_start 等文件
+pssh 执行的远程命令
+
+source /etc/profile
+pssh -i \
+  -t 60 \
+  -O ConnectTimeout=5 \
+  -O ConnectionAttempts=3 \
+  -O ServerAliveInterval=15 \
+  -O ServerAliveCountMax=3 \
+  -h /opt/huawei/install/app/bin/hosts \
+  &#34;rm -f /opt/huawei/install/app/bin/cluster_manual_start /opt/huawei/install/app/bin/instance_manual_start_*;
+   if [ -f /opt/huawei/install/app/bin/cluster_manual_pause ]; then
+     touch /opt/huawei/install/app/bin/cluster_manual_starting;
+   fi&#34; &gt; /opt/huawei/install/app/bin/pssh.out
+
+if [ $? -ne 0 ]; then
+  cat /opt/huawei/install/app/bin/pssh.out
+fi
+
+rm -f /opt/huawei/install/app/bin/pssh.out
+
+
+删除文件触发启动集群
+启动集群是通过删除$GAUSSHOME/bin下的cluster_manual_start文件来实现的" />
+  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="https://gitcode.com/maozicb/database_doc/main.min.css" />
+
+  
+  <link rel="preload" as="image" href="https://gitcode.com/maozicb/database_doc/theme.png" />
+
+  
+
+  <link rel="preload" as="image" href="https://gitcode.com/maozicb/database_doc/github.svg" />
+
+  <script
+    defer
+    src="https://gitcode.com/maozicb/database_doc/highlight.min.js"
+    onload="hljs.initHighlightingOnLoad();"
+  ></script>
+
+  
+  <link
+    rel="icon"
+    href="https://gitcode.com/maozicb/database_doc/favicon.ico"
+  />
+  <link
+    rel="apple-touch-icon"
+    href="https://gitcode.com/maozicb/database_doc/apple-touch-icon.png"
+  />
+
+  <meta name="generator" content="Hugo 0.147.7">
+  <meta itemprop="name" content="OpenGauss 启动集群竟靠删文件？这是什么「逆向操作」">
+  <meta itemprop="description" content="集群管理软件介绍 OM 运维管理模块(OperationManager)提供openGauss日常运维、配置管理的管理接口和工具.使用python语言编写,底层调用cm相关命令
+CM （Cluster Manager）是一款集群资源管理软件。支持自定义资源监控，提供了数据库主备的状态监控、网络通信故障监控、文件系统故障监控、故障自动主备切换等能力。
+CM由cm_server,cm_agent,cm_ctl组成。
+cm_agent是部署在数据库每个主机上，用来启停和监控各个数据库实例进程的数据库管理组件。 cm_server是用来进行数据库实例管理和实例仲裁的组件。 cm_ctl是openGauss提供的用来控制数据库实例服务的工具。该工具主要供OM调用，及数据库实例服务自恢复时使用。 om_monitor 是OpenGauss 后台守护进程,由crontab 管理,可以自动启动 集群启动原理 启动命令 在gs_om -t start 启动集群中,实际最后调用的是cm_ctl start
+cm_ctl start 源码函数调用 调用do_start() 调用StartWholeCluster() 启动集群 if (g_commandOperationInstanceId == 0 &amp;&amp; g_command_operation_azName == NULL &amp;&amp; g_commandOperationNodeId == 0) ...CM_RETURN_IFERR(StartWholeCluster()); 检查 集群的状态 CheckClusterRunningStatus() 检查状态的核心命令是通过pssh 读取hosts($GAUSSHOME/bin/hosts文件)列表,并发在所有节点执行 cm_ctl check -B cm_agent -T /opt/huawei/install/app/bin/cm_agent 命令 启动集群 ,调用 start_cluster()函数
+start_cluster() 函数的核心原理是通过pssh 在集群每个节点执行rm 命令删除cluster_manual_start 等文件
+pssh 执行的远程命令source /etc/profilepssh -i \-t 60 \-O ConnectTimeout=5 \-O ConnectionAttempts=3 \-O ServerAliveInterval=15 \-O ServerAliveCountMax=3 \-h /opt/huawei/install/app/bin/hosts \&#34;rm -f /opt/huawei/install/app/bin/cluster_manual_start /opt/huawei/install/app/bin/instance_manual_start_*;if [ -f /opt/huawei/install/app/bin/cluster_manual_pause ]; thentouch /opt/huawei/install/app/bin/cluster_manual_starting;fi&#34; &gt; /opt/huawei/install/app/bin/pssh.outif [ $? -ne 0 ]; thencat /opt/huawei/install/app/bin/pssh.outfirm -f /opt/huawei/install/app/bin/pssh.out 删除文件触发启动集群 启动集群是通过删除$GAUSSHOME/bin下的cluster_manual_start文件来实现的">
+  <meta itemprop="datePublished" content="2025-05-16T20:44:59+08:00">
+  <meta itemprop="dateModified" content="2025-05-16T20:44:59+08:00">
+  <meta itemprop="wordCount" content="296">
+  <meta itemprop="keywords" content="OpenGauss"><meta property="og:url" content="https://gitcode.com/maozicb/database_doc/posts/db/opengauss/opengauss_%E5%90%AF%E5%8A%A8%E9%9B%86%E7%BE%A4%E7%AB%9F%E9%9D%A0%E5%88%A0%E6%96%87%E4%BB%B6/">
+  <meta property="og:site_name" content="数据库的路上">
+  <meta property="og:title" content="OpenGauss 启动集群竟靠删文件？这是什么「逆向操作」">
+  <meta property="og:description" content="集群管理软件介绍 OM 运维管理模块(OperationManager)提供openGauss日常运维、配置管理的管理接口和工具.使用python语言编写,底层调用cm相关命令
+CM （Cluster Manager）是一款集群资源管理软件。支持自定义资源监控，提供了数据库主备的状态监控、网络通信故障监控、文件系统故障监控、故障自动主备切换等能力。
+CM由cm_server,cm_agent,cm_ctl组成。
+cm_agent是部署在数据库每个主机上，用来启停和监控各个数据库实例进程的数据库管理组件。 cm_server是用来进行数据库实例管理和实例仲裁的组件。 cm_ctl是openGauss提供的用来控制数据库实例服务的工具。该工具主要供OM调用，及数据库实例服务自恢复时使用。 om_monitor 是OpenGauss 后台守护进程,由crontab 管理,可以自动启动 集群启动原理 启动命令 在gs_om -t start 启动集群中,实际最后调用的是cm_ctl start
+cm_ctl start 源码函数调用 调用do_start() 调用StartWholeCluster() 启动集群 if (g_commandOperationInstanceId == 0 &amp;&amp; g_command_operation_azName == NULL &amp;&amp; g_commandOperationNodeId == 0) ...CM_RETURN_IFERR(StartWholeCluster()); 检查 集群的状态 CheckClusterRunningStatus() 检查状态的核心命令是通过pssh 读取hosts($GAUSSHOME/bin/hosts文件)列表,并发在所有节点执行 cm_ctl check -B cm_agent -T /opt/huawei/install/app/bin/cm_agent 命令 启动集群 ,调用 start_cluster()函数
+start_cluster() 函数的核心原理是通过pssh 在集群每个节点执行rm 命令删除cluster_manual_start 等文件
+pssh 执行的远程命令source /etc/profilepssh -i \-t 60 \-O ConnectTimeout=5 \-O ConnectionAttempts=3 \-O ServerAliveInterval=15 \-O ServerAliveCountMax=3 \-h /opt/huawei/install/app/bin/hosts \&#34;rm -f /opt/huawei/install/app/bin/cluster_manual_start /opt/huawei/install/app/bin/instance_manual_start_*;if [ -f /opt/huawei/install/app/bin/cluster_manual_pause ]; thentouch /opt/huawei/install/app/bin/cluster_manual_starting;fi&#34; &gt; /opt/huawei/install/app/bin/pssh.outif [ $? -ne 0 ]; thencat /opt/huawei/install/app/bin/pssh.outfirm -f /opt/huawei/install/app/bin/pssh.out 删除文件触发启动集群 启动集群是通过删除$GAUSSHOME/bin下的cluster_manual_start文件来实现的">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2025-05-16T20:44:59+08:00">
+    <meta property="article:modified_time" content="2025-05-16T20:44:59+08:00">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="OpenGauss 启动集群竟靠删文件？这是什么「逆向操作」">
+  <meta name="twitter:description" content="集群管理软件介绍 OM 运维管理模块(OperationManager)提供openGauss日常运维、配置管理的管理接口和工具.使用python语言编写,底层调用cm相关命令
+CM （Cluster Manager）是一款集群资源管理软件。支持自定义资源监控，提供了数据库主备的状态监控、网络通信故障监控、文件系统故障监控、故障自动主备切换等能力。
+CM由cm_server,cm_agent,cm_ctl组成。
+cm_agent是部署在数据库每个主机上，用来启停和监控各个数据库实例进程的数据库管理组件。 cm_server是用来进行数据库实例管理和实例仲裁的组件。 cm_ctl是openGauss提供的用来控制数据库实例服务的工具。该工具主要供OM调用，及数据库实例服务自恢复时使用。 om_monitor 是OpenGauss 后台守护进程,由crontab 管理,可以自动启动 集群启动原理 启动命令 在gs_om -t start 启动集群中,实际最后调用的是cm_ctl start
+cm_ctl start 源码函数调用 调用do_start() 调用StartWholeCluster() 启动集群 if (g_commandOperationInstanceId == 0 &amp;&amp; g_command_operation_azName == NULL &amp;&amp; g_commandOperationNodeId == 0) ...CM_RETURN_IFERR(StartWholeCluster()); 检查 集群的状态 CheckClusterRunningStatus() 检查状态的核心命令是通过pssh 读取hosts($GAUSSHOME/bin/hosts文件)列表,并发在所有节点执行 cm_ctl check -B cm_agent -T /opt/huawei/install/app/bin/cm_agent 命令 启动集群 ,调用 start_cluster()函数
+start_cluster() 函数的核心原理是通过pssh 在集群每个节点执行rm 命令删除cluster_manual_start 等文件
+pssh 执行的远程命令source /etc/profilepssh -i \-t 60 \-O ConnectTimeout=5 \-O ConnectionAttempts=3 \-O ServerAliveInterval=15 \-O ServerAliveCountMax=3 \-h /opt/huawei/install/app/bin/hosts \&#34;rm -f /opt/huawei/install/app/bin/cluster_manual_start /opt/huawei/install/app/bin/instance_manual_start_*;if [ -f /opt/huawei/install/app/bin/cluster_manual_pause ]; thentouch /opt/huawei/install/app/bin/cluster_manual_starting;fi&#34; &gt; /opt/huawei/install/app/bin/pssh.outif [ $? -ne 0 ]; thencat /opt/huawei/install/app/bin/pssh.outfirm -f /opt/huawei/install/app/bin/pssh.out 删除文件触发启动集群 启动集群是通过删除$GAUSSHOME/bin下的cluster_manual_start文件来实现的">
+
+  <link rel="canonical" href="https://gitcode.com/maozicb/database_doc/posts/db/opengauss/opengauss_%E5%90%AF%E5%8A%A8%E9%9B%86%E7%BE%A4%E7%AB%9F%E9%9D%A0%E5%88%A0%E6%96%87%E4%BB%B6/" />
+</head>
+<body
+    class="bg-(--bg) text-black antialiased duration-200 ease-out [-webkit-tap-highlight-color:transparent] dark:text-white"
+  ><header
+  class="mx-auto flex h-[4.5rem] max-w-(--w) px-8 whitespace-nowrap lg:justify-center"
+>
+  <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
+    <a
+      class="-translate-y-[1px] text-2xl font-medium"
+      href="https://gitcode.com/maozicb/database_doc/"
+      >数据库的路上</a
+    >
+    <div
+      class="btn-dark text-[0px] ltr:ml-4 rtl:mr-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]"
+      role="button"
+      aria-label="Dark"
+    ></div>
+  </div>
+
+  <div
+    class="btn-menu relative z-50 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden ltr:-mr-8 rtl:-ml-8"
+    role="button"
+    aria-label="Menu"
+  ></div>
+
+  <script>
+    
+    const htmlClass = document.documentElement.classList;
+    setTimeout(() => {
+      htmlClass.remove('not-ready');
+    }, 10);
+
+    
+    const btnMenu = document.querySelector('.btn-menu');
+    btnMenu.addEventListener('click', () => {
+      htmlClass.toggle('open');
+    });
+
+    
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    const lightBg = '#faf8f1'.replace(/"/g, '');
+    const setDark = (isDark) => {
+      metaTheme.setAttribute('content', isDark ? '#000' : lightBg);
+      htmlClass[isDark ? 'add' : 'remove']('dark');
+      localStorage.setItem('dark', isDark);
+    };
+
+    
+    const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    if (htmlClass.contains('dark')) {
+      setDark(true);
+    } else {
+      const darkVal = localStorage.getItem('dark');
+      setDark(darkVal ? darkVal === 'true' : darkScheme.matches);
+    }
+
+    
+    darkScheme.addEventListener('change', (event) => {
+      setDark(event.matches);
+    });
+
+    
+    const btnDark = document.querySelector('.btn-dark');
+    btnDark.addEventListener('click', () => {
+      setDark(localStorage.getItem('dark') !== 'true');
+    });
+  </script>
+
+  <div
+    class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full flex-col justify-center bg-(--bg) pb-16 duration-200 select-none lg:static lg:h-auto lg:flex-row lg:bg-transparent! lg:pb-0 lg:transition-none"
+  ><nav
+      class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"
+    ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/maozicb/database_doc/about/"
+        >About</a
+      ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/maozicb/database_doc/contact/"
+        >Contact</a
+      ></nav><nav
+      class="mt-12 flex justify-center space-x-10 lg:mt-0 lg:items-center ltr:lg:ml-14 rtl:space-x-reverse rtl:lg:mr-14 dark:invert"
+    >
+      <a
+        class="h-7 w-7 text-[0px] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6"
+        style="--url: url(./github.svg)"
+        href="https://github.com/newusername"
+        target="_blank"
+        rel="me"
+      >github</a>
+    </nav>
+  </div>
+</header>
+<main
+      class="prose prose-neutral dark:prose-invert relative mx-auto min-h-[calc(100vh-9rem)] max-w-(--w) px-8 pt-14 pb-16"
+    ><article>
+  <header class="mb-14">
+    <h1 class="my-0! pb-2.5">OpenGauss 启动集群竟靠删文件？这是什么「逆向操作」</h1><div class="text-xs antialiased opacity-60"><time>May 16, 2025</time></div></header>
+
+  <section><h2 id="集群管理软件介绍">集群管理软件介绍</h2>
+<h3 id="om">OM</h3>
+<p>运维管理模块(OperationManager)提供openGauss日常运维、配置管理的管理接口和工具.使用python语言编写,底层调用cm相关命令</p>
+<h3 id="cm">CM</h3>
+<p>（Cluster Manager）是一款集群资源管理软件。支持自定义资源监控，提供了数据库主备的状态监控、网络通信故障监控、文件系统故障监控、故障自动主备切换等能力。</p>
+<p>CM由cm_server,cm_agent,cm_ctl组成。</p>
+<ul>
+<li>cm_agent是部署在数据库每个主机上，用来启停和监控各个数据库实例进程的数据库管理组件。</li>
+<li>cm_server是用来进行数据库实例管理和实例仲裁的组件。</li>
+</ul>
+<ul>
+<li>cm_ctl是openGauss提供的用来控制数据库实例服务的工具。该工具主要供OM调用，及数据库实例服务自恢复时使用。</li>
+<li>om_monitor 是OpenGauss 后台守护进程,由crontab 管理,可以自动启动</li>
+</ul>
+<h2 id="集群启动原理">集群启动原理</h2>
+<h3 id="启动命令">启动命令</h3>
+<p>在gs_om -t start 启动集群中,实际最后调用的是cm_ctl  start</p>
+<h4 id="cm_ctl--start-源码函数调用">cm_ctl  start 源码函数调用</h4>
+<h5 id="调用do_start">调用do_start()</h5>
+<p><img src="https://s2.loli.net/2025/05/20/cJZFdzuwxjQerEs.png" alt="image-20250520210020263"></p>
+<h5 id="调用startwholecluster--启动集群">调用StartWholeCluster()  启动集群</h5>
+<pre tabindex="0"><code> if (g_commandOperationInstanceId == 0 &amp;&amp; g_command_operation_azName == NULL &amp;&amp; g_commandOperationNodeId == 0) 
+ ...
+ CM_RETURN_IFERR(StartWholeCluster());
+</code></pre><p><img src="https://s2.loli.net/2025/05/21/hkHyTMsXDpRKx4v.png" alt="image-20250521213747969"></p>
+<ul>
+<li>检查 集群的状态 CheckClusterRunningStatus()</li>
+</ul>
+<pre tabindex="0"><code>检查状态的核心命令是通过pssh 读取hosts($GAUSSHOME/bin/hosts文件)列表,并发在所有节点执行 cm_ctl check -B cm_agent -T /opt/huawei/install/app/bin/cm_agent  命令
+</code></pre><ul>
+<li>
+<p>启动集群 ,调用 start_cluster()函数</p>
+<p>start_cluster() 函数的核心原理是通过pssh 在集群每个节点执行rm 命令删除cluster_manual_start 等文件</p>
+<pre tabindex="0"><code>pssh 执行的远程命令
+
+source /etc/profile
+pssh -i \
+  -t 60 \
+  -O ConnectTimeout=5 \
+  -O ConnectionAttempts=3 \
+  -O ServerAliveInterval=15 \
+  -O ServerAliveCountMax=3 \
+  -h /opt/huawei/install/app/bin/hosts \
+  &#34;rm -f /opt/huawei/install/app/bin/cluster_manual_start /opt/huawei/install/app/bin/instance_manual_start_*;
+   if [ -f /opt/huawei/install/app/bin/cluster_manual_pause ]; then
+     touch /opt/huawei/install/app/bin/cluster_manual_starting;
+   fi&#34; &gt; /opt/huawei/install/app/bin/pssh.out
+
+if [ $? -ne 0 ]; then
+  cat /opt/huawei/install/app/bin/pssh.out
+fi
+
+rm -f /opt/huawei/install/app/bin/pssh.out
+</code></pre></li>
+</ul>
+<h5 id="删除文件触发启动集群">删除文件触发启动集群</h5>
+<p>启动集群是通过删除$GAUSSHOME/bin下的cluster_manual_start文件来实现的</p>
+<ul>
+<li>这些文件的删除会被集群监控进程(om_monitor)检测到</li>
+<li>监控进程检测到文件被删除后，会触发实际的集群启动流程</li>
+</ul>
+<p><img src="https://s2.loli.net/2025/05/24/kjOXHa93NA7mQlT.png" alt="image-20250524123143423"></p>
+<h5 id="om_monitor-接收信号启动集群">om_monitor 接收信号启动集群</h5>
+<p>om_monitor进程在后台通过server_loop()函数一直监测请求,check_start_request()来检查是否需要启动集群.当cluster_manual_start文件被cm_ctl 删除后,触发启动集群.</p>
+<p><img src="https://s2.loli.net/2025/05/25/W3CRY9bXM1xPpSI.png" alt="image-20250525105922697"></p>
+<p>通过系统函数access 检查$GAUSSHOME/bin/cluster_manual_start 文件是否存在,同时满足几个条件后,集群集群的变量startRequest 为True</p>
+<p>检查条件 ：</p>
+<ul>
+<li>disableManualStart : 检查 cluster_manual_start 文件是否存在</li>
+<li>isConfigExist : 检查CM Agent配置文件是否可读</li>
+<li>isBinaryExist : 检查CM Agent二进制文件是否可执行</li>
+<li>isConfigChange : 检查 cluster_dilatation_status 配置文件变更标志是否存在</li>
+</ul>
+<pre tabindex="0"><code>   check_start_request代码:
+   /* If the cluster manual start file exist, the CM Agent will not be started. */
+    const bool disableManualStart = (access(g_cmManualStartPath, F_OK) == 0);
+    /* If the config file can not be read, the CM Agent will not be started. */
+    const bool isConfigExist = (access(agentConfigFile, R_OK) == 0);
+    /* If the binary file can not be execute, the CM Agent will not be started. */
+    const bool isBinaryExist = (access(g_cmAgentBinPath, X_OK) == 0);
+    /* If the config change file exist, the CM Agent will not be started. */
+    const bool isConfigChange = (access(g_cmStaticConfigChangeFlagFilePath, F_OK) == 0);
+    /* Normal Scenario. */
+    if (!disableManualStart &amp;&amp; isBinaryExist &amp;&amp; isConfigExist &amp;&amp; !isConfigChange) {
+        startRequest = true;
+        agentRestartCount = 0;
+    }
+</code></pre><p>启动集群时om_monitor 日志会打印出cluster_manual_start=0的信息</p>
+<p><img src="https://s2.loli.net/2025/05/25/1TeMd8jb7ltPRU2.png" alt="image-20250525111940921"></p>
+<h5 id="集群启动步骤">集群启动步骤</h5>
+<p>每一个节点单独启动本节点的cm_agent,cm_server,gaussdb 进程</p>
+<h6 id="首先启动cm_agent">首先启动cm_agent</h6>
+<p>om_monitor 调用start_cm_agent()函数启动cm_agent 进程 。</p>
+<h6 id="接着启动-cm_server">接着启动 cm_server</h6>
+<p>cm_agent 是一个多线程的监控程序，它通过agentStartAndStopMain线程启动cm_server</p>
+<p><img src="https://s2.loli.net/2025/05/27/b4nGCe1cU8LWO9Q.png" alt="image-20250527171021629.png"></p>
+<h6 id="然后启动data-node">然后启动data node</h6>
+<p><img src="https://s2.loli.net/2025/05/27/rBHqznhPxfJ1svI.png" alt="image-20250527173936281"></p>
+<h2 id="小结">小结</h2>
+<p>OpenGauss 集群的启动流程如下：执行 <code>cm_ctl start</code> 命令时，会删除各节点 <code>$GAUSSHOME/bin</code> 目录下的 <code>cluster_manual_start</code> 文件。删除操作完成后，<code>om_monitor</code> 进程将触发 <code>cm_agent</code> 进程启动。随后，<code>cm_agent</code> 进程会依次启动 <code>cm_server</code> 进程和数据节点进程（<code>gaussdb</code>）。当所有节点的相关进程均启动完成后，整个集群即完成启动</p>
+</section>
+
+  <nav
+    class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg leading-[1.2]! *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"
+  ><a class="ltr:pr-3 rtl:pl-3" href="https://gitcode.com/maozicb/database_doc/posts/opengauss_gs_om%E5%91%BD%E4%BB%A4%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/"
+      ><span class="ltr:mr-1.5 rtl:ml-1.5">←</span><span>openGauss gs_om 命令源码解读</span></a
+    ><a
+      class="justify-end pl-3 ltr:ml-auto rtl:mr-auto"
+      href="https://gitcode.com/maozicb/database_doc/posts/db/postgresql/postgresql-%E6%BA%90%E7%A0%81%E7%A0%94%E7%A9%B6%E4%B9%8B%E5%9F%BA%E7%A1%80%E5%A4%87%E4%BB%BD%E5%B7%A5%E5%85%B7pg_basebackup/"
+      ><span>Postgresql 源码研究之基础备份工具pg_basebackup</span><span class="ltr:ml-1.5 rtl:mr-1.5">→</span></a
+    ></nav></article></main><footer
+  class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
+>
+  <div class="mr-auto">&copy;2025
+    <a class="link" href="https://gitcode.com/maozicb/database_doc/">数据库的路上</a></div>
+</footer>
+</body>
+</html>
