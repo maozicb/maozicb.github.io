@@ -37,29 +37,29 @@ gs_om 是 openGauss 数据库运维管理的核心命令行工具，是 openGaus
 
 先启动cm
 " />
-  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="https://github.com/maozicb/maozicb.github.io/main.min.css" />
+  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="https://maozicb.github.io/main.min.css" />
 
   
-  <link rel="preload" as="image" href="https://github.com/maozicb/maozicb.github.io/theme.png" />
+  <link rel="preload" as="image" href="https://maozicb.github.io/theme.png" />
 
   
 
-  <link rel="preload" as="image" href="https://github.com/maozicb/maozicb.github.io/github.svg" />
+  <link rel="preload" as="image" href="https://maozicb.github.io/github.svg" />
 
   <script
     defer
-    src="https://github.com/maozicb/maozicb.github.io/highlight.min.js"
+    src="https://maozicb.github.io/highlight.min.js"
     onload="hljs.initHighlightingOnLoad();"
   ></script>
 
   
   <link
     rel="icon"
-    href="https://github.com/maozicb/maozicb.github.io/favicon.ico"
+    href="https://maozicb.github.io/favicon.ico"
   />
   <link
     rel="apple-touch-icon"
-    href="https://github.com/maozicb/maozicb.github.io/apple-touch-icon.png"
+    href="https://maozicb.github.io/apple-touch-icon.png"
   />
 
   <meta name="generator" content="Hugo 0.145.0">
@@ -72,7 +72,7 @@ gs_om 命令工具 gs_om 是 openGauss 数据库运维管理的核心命令行�
   <meta itemprop="datePublished" content="2025-05-16T20:44:59+08:00">
   <meta itemprop="dateModified" content="2025-05-16T20:44:59+08:00">
   <meta itemprop="wordCount" content="30">
-  <meta itemprop="keywords" content="OpenGauss"><meta property="og:url" content="https://github.com/maozicb/maozicb.github.io/posts/opengauss_gs_om%E5%91%BD%E4%BB%A4%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">
+  <meta itemprop="keywords" content="OpenGauss"><meta property="og:url" content="https://maozicb.github.io/posts/opengauss_gs_om%E5%91%BD%E4%BB%A4%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">
   <meta property="og:site_name" content="数据库的路上">
   <meta property="og:title" content="openGauss gs_om 命令源码解读">
   <meta property="og:description" content="openGauss-OM openGauss-OM简介 openGauss-OM（Operation and Maintenance Tool）是基于Python 开发的 openGauss 数据库的运维工具，主要用于实现数据库的自动化部署、配置管理、监控告警及故障处理等功能，旨在提升数据库运维效率，降低运维复杂度
@@ -94,7 +94,7 @@ gs_om 命令工具 gs_om 是 openGauss 数据库运维管理的核心命令行�
 接着调用OmImplOLAP.doStartClusterByCm 函数启动集群
 先启动cm">
 
-  <link rel="canonical" href="https://github.com/maozicb/maozicb.github.io/posts/opengauss_gs_om%E5%91%BD%E4%BB%A4%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/" />
+  <link rel="canonical" href="https://maozicb.github.io/posts/opengauss_gs_om%E5%91%BD%E4%BB%A4%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/" />
 </head>
 <body
     class="bg-(--bg) text-black antialiased duration-200 ease-out [-webkit-tap-highlight-color:transparent] dark:text-white"
@@ -104,7 +104,7 @@ gs_om 命令工具 gs_om 是 openGauss 数据库运维管理的核心命令行�
   <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
     <a
       class="-translate-y-[1px] text-2xl font-medium"
-      href="https://github.com/maozicb/maozicb.github.io/"
+      href="https://maozicb.github.io/"
       >数据库的路上</a
     >
     <div
@@ -169,11 +169,11 @@ gs_om 命令工具 gs_om 是 openGauss 数据库运维管理的核心命令行�
       class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"
     ><a
         class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
-        href="/maozicb/maozicb.github.io/about/"
+        href="/about/"
         >About</a
       ><a
         class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
-        href="/maozicb/maozicb.github.io/contact/"
+        href="/contact/"
         >Contact</a
       ></nav><nav
       class="mt-12 flex justify-center space-x-10 lg:mt-0 lg:items-center ltr:lg:ml-14 rtl:space-x-reverse rtl:lg:mr-14 dark:invert"
@@ -212,13 +212,13 @@ gs_om 命令工具 gs_om 是 openGauss 数据库运维管理的核心命令行�
     class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg leading-[1.2]! *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"
   ><a
       class="justify-end pl-3 ltr:ml-auto rtl:mr-auto"
-      href="https://github.com/maozicb/maozicb.github.io/posts/db/opengauss/opengauss_%E5%90%AF%E5%8A%A8%E9%9B%86%E7%BE%A4%E7%AB%9F%E9%9D%A0%E5%88%A0%E6%96%87%E4%BB%B6/"
+      href="https://maozicb.github.io/posts/db/opengauss/opengauss_%E5%90%AF%E5%8A%A8%E9%9B%86%E7%BE%A4%E7%AB%9F%E9%9D%A0%E5%88%A0%E6%96%87%E4%BB%B6/"
       ><span>OpenGauss 启动集群竟靠删文件？这是什么「逆向操作」</span><span class="ltr:ml-1.5 rtl:mr-1.5">→</span></a
     ></nav></article></main><footer
   class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
 >
   <div class="mr-auto">&copy;2025
-    <a class="link" href="https://github.com/maozicb/maozicb.github.io/">数据库的路上</a></div>
+    <a class="link" href="https://maozicb.github.io/">数据库的路上</a></div>
 </footer>
 </body>
 </html>

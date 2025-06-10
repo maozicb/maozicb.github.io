@@ -82,29 +82,29 @@ rm -f /opt/huawei/install/app/bin/pssh.out
 
 删除文件触发启动集群
 启动集群是通过删除$GAUSSHOME/bin下的cluster_manual_start文件来实现的" />
-  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="https://github.com/maozicb/maozicb.github.io/main.min.css" />
+  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="https://maozicb.github.io/main.min.css" />
 
   
-  <link rel="preload" as="image" href="https://github.com/maozicb/maozicb.github.io/theme.png" />
+  <link rel="preload" as="image" href="https://maozicb.github.io/theme.png" />
 
   
 
-  <link rel="preload" as="image" href="https://github.com/maozicb/maozicb.github.io/github.svg" />
+  <link rel="preload" as="image" href="https://maozicb.github.io/github.svg" />
 
   <script
     defer
-    src="https://github.com/maozicb/maozicb.github.io/highlight.min.js"
+    src="https://maozicb.github.io/highlight.min.js"
     onload="hljs.initHighlightingOnLoad();"
   ></script>
 
   
   <link
     rel="icon"
-    href="https://github.com/maozicb/maozicb.github.io/favicon.ico"
+    href="https://maozicb.github.io/favicon.ico"
   />
   <link
     rel="apple-touch-icon"
-    href="https://github.com/maozicb/maozicb.github.io/apple-touch-icon.png"
+    href="https://maozicb.github.io/apple-touch-icon.png"
   />
 
   <meta name="generator" content="Hugo 0.145.0">
@@ -119,7 +119,7 @@ pssh 执行的远程命令source /etc/profilepssh -i \-t 60 \-O ConnectTimeo
   <meta itemprop="datePublished" content="2025-05-16T20:44:59+08:00">
   <meta itemprop="dateModified" content="2025-05-16T20:44:59+08:00">
   <meta itemprop="wordCount" content="296">
-  <meta itemprop="keywords" content="OpenGauss"><meta property="og:url" content="https://github.com/maozicb/maozicb.github.io/posts/db/opengauss/opengauss_%E5%90%AF%E5%8A%A8%E9%9B%86%E7%BE%A4%E7%AB%9F%E9%9D%A0%E5%88%A0%E6%96%87%E4%BB%B6/">
+  <meta itemprop="keywords" content="OpenGauss"><meta property="og:url" content="https://maozicb.github.io/posts/db/opengauss/opengauss_%E5%90%AF%E5%8A%A8%E9%9B%86%E7%BE%A4%E7%AB%9F%E9%9D%A0%E5%88%A0%E6%96%87%E4%BB%B6/">
   <meta property="og:site_name" content="数据库的路上">
   <meta property="og:title" content="OpenGauss 启动集群竟靠删文件？这是什么「逆向操作」">
   <meta property="og:description" content="集群管理软件介绍 OM 运维管理模块(OperationManager)提供openGauss日常运维、配置管理的管理接口和工具.使用python语言编写,底层调用cm相关命令
@@ -145,7 +145,7 @@ cm_ctl start 源码函数调用 调用do_start() 调用StartWholeCluster() 启�
 start_cluster() 函数的核心原理是通过pssh 在集群每个节点执行rm 命令删除cluster_manual_start 等文件
 pssh 执行的远程命令source /etc/profilepssh -i \-t 60 \-O ConnectTimeout=5 \-O ConnectionAttempts=3 \-O ServerAliveInterval=15 \-O ServerAliveCountMax=3 \-h /opt/huawei/install/app/bin/hosts \&#34;rm -f /opt/huawei/install/app/bin/cluster_manual_start /opt/huawei/install/app/bin/instance_manual_start_*;if [ -f /opt/huawei/install/app/bin/cluster_manual_pause ]; thentouch /opt/huawei/install/app/bin/cluster_manual_starting;fi&#34; &gt; /opt/huawei/install/app/bin/pssh.outif [ $? -ne 0 ]; thencat /opt/huawei/install/app/bin/pssh.outfirm -f /opt/huawei/install/app/bin/pssh.out 删除文件触发启动集群 启动集群是通过删除$GAUSSHOME/bin下的cluster_manual_start文件来实现的">
 
-  <link rel="canonical" href="https://github.com/maozicb/maozicb.github.io/posts/db/opengauss/opengauss_%E5%90%AF%E5%8A%A8%E9%9B%86%E7%BE%A4%E7%AB%9F%E9%9D%A0%E5%88%A0%E6%96%87%E4%BB%B6/" />
+  <link rel="canonical" href="https://maozicb.github.io/posts/db/opengauss/opengauss_%E5%90%AF%E5%8A%A8%E9%9B%86%E7%BE%A4%E7%AB%9F%E9%9D%A0%E5%88%A0%E6%96%87%E4%BB%B6/" />
 </head>
 <body
     class="bg-(--bg) text-black antialiased duration-200 ease-out [-webkit-tap-highlight-color:transparent] dark:text-white"
@@ -155,7 +155,7 @@ pssh 执行的远程命令source /etc/profilepssh -i \-t 60 \-O ConnectTimeo
   <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
     <a
       class="-translate-y-[1px] text-2xl font-medium"
-      href="https://github.com/maozicb/maozicb.github.io/"
+      href="https://maozicb.github.io/"
       >数据库的路上</a
     >
     <div
@@ -220,11 +220,11 @@ pssh 执行的远程命令source /etc/profilepssh -i \-t 60 \-O ConnectTimeo
       class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"
     ><a
         class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
-        href="/maozicb/maozicb.github.io/about/"
+        href="/about/"
         >About</a
       ><a
         class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
-        href="/maozicb/maozicb.github.io/contact/"
+        href="/contact/"
         >Contact</a
       ></nav><nav
       class="mt-12 flex justify-center space-x-10 lg:mt-0 lg:items-center ltr:lg:ml-14 rtl:space-x-reverse rtl:lg:mr-14 dark:invert"
@@ -349,17 +349,17 @@ rm -f /opt/huawei/install/app/bin/pssh.out
 
   <nav
     class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg leading-[1.2]! *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"
-  ><a class="ltr:pr-3 rtl:pl-3" href="https://github.com/maozicb/maozicb.github.io/posts/opengauss_gs_om%E5%91%BD%E4%BB%A4%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/"
+  ><a class="ltr:pr-3 rtl:pl-3" href="https://maozicb.github.io/posts/opengauss_gs_om%E5%91%BD%E4%BB%A4%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/"
       ><span class="ltr:mr-1.5 rtl:ml-1.5">←</span><span>openGauss gs_om 命令源码解读</span></a
     ><a
       class="justify-end pl-3 ltr:ml-auto rtl:mr-auto"
-      href="https://github.com/maozicb/maozicb.github.io/posts/db/postgresql/postgresql-%E6%BA%90%E7%A0%81%E7%A0%94%E7%A9%B6%E4%B9%8B%E5%9F%BA%E7%A1%80%E5%A4%87%E4%BB%BD%E5%B7%A5%E5%85%B7pg_basebackup/"
+      href="https://maozicb.github.io/posts/db/postgresql/postgresql-%E6%BA%90%E7%A0%81%E7%A0%94%E7%A9%B6%E4%B9%8B%E5%9F%BA%E7%A1%80%E5%A4%87%E4%BB%BD%E5%B7%A5%E5%85%B7pg_basebackup/"
       ><span>Postgresql 源码研究之基础备份工具pg_basebackup</span><span class="ltr:ml-1.5 rtl:mr-1.5">→</span></a
     ></nav></article></main><footer
   class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
 >
   <div class="mr-auto">&copy;2025
-    <a class="link" href="https://github.com/maozicb/maozicb.github.io/">数据库的路上</a></div>
+    <a class="link" href="https://maozicb.github.io/">数据库的路上</a></div>
 </footer>
 </body>
 </html>
