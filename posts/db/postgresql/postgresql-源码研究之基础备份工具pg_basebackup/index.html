@@ -96,32 +96,32 @@ pg_basebackup_19476
 (1 row)
 ▶ 循环接收服务端发送过来的备份数据直到结束
 ReceiveArchiveStream(conn, client_compress);" />
-  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="https://gitcode.com/maozicb/database_doc/main.min.css" />
+  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="https://github.com/maozicb/maozicb.github.io/main.min.css" />
 
   
-  <link rel="preload" as="image" href="https://gitcode.com/maozicb/database_doc/theme.png" />
+  <link rel="preload" as="image" href="https://github.com/maozicb/maozicb.github.io/theme.png" />
 
   
 
-  <link rel="preload" as="image" href="https://gitcode.com/maozicb/database_doc/github.svg" />
+  <link rel="preload" as="image" href="https://github.com/maozicb/maozicb.github.io/github.svg" />
 
   <script
     defer
-    src="https://gitcode.com/maozicb/database_doc/highlight.min.js"
+    src="https://github.com/maozicb/maozicb.github.io/highlight.min.js"
     onload="hljs.initHighlightingOnLoad();"
   ></script>
 
   
   <link
     rel="icon"
-    href="https://gitcode.com/maozicb/database_doc/favicon.ico"
+    href="https://github.com/maozicb/maozicb.github.io/favicon.ico"
   />
   <link
     rel="apple-touch-icon"
-    href="https://gitcode.com/maozicb/database_doc/apple-touch-icon.png"
+    href="https://github.com/maozicb/maozicb.github.io/apple-touch-icon.png"
   />
 
-  <meta name="generator" content="Hugo 0.147.7">
+  <meta name="generator" content="Hugo 0.145.0">
   <meta itemprop="name" content="Postgresql 源码研究之基础备份工具pg_basebackup">
   <meta itemprop="description" content="pg_basebackup介绍 pg_basebackup 是 PostgreSQL 内置的 物理备份工具，用于创建数据库集群的 一致基础备份。它支持 在线热备份（备份时数据库可正常读写），是实现高可用性（如流复制）和灾难恢复的核心工具之一
 main函数介绍 根据代码分析，main()函数在pg_basebackup.c中主要完成了以下逻辑步骤：
@@ -145,7 +145,7 @@ cleanup_directories_atexit()` - 退出时清理
   <meta itemprop="datePublished" content="2025-05-16T20:44:59+08:00">
   <meta itemprop="dateModified" content="2025-05-16T20:44:59+08:00">
   <meta itemprop="wordCount" content="165">
-  <meta itemprop="keywords" content="PostgreSql"><meta property="og:url" content="https://gitcode.com/maozicb/database_doc/posts/db/postgresql/postgresql-%E6%BA%90%E7%A0%81%E7%A0%94%E7%A9%B6%E4%B9%8B%E5%9F%BA%E7%A1%80%E5%A4%87%E4%BB%BD%E5%B7%A5%E5%85%B7pg_basebackup/">
+  <meta itemprop="keywords" content="PostgreSql"><meta property="og:url" content="https://github.com/maozicb/maozicb.github.io/posts/db/postgresql/postgresql-%E6%BA%90%E7%A0%81%E7%A0%94%E7%A9%B6%E4%B9%8B%E5%9F%BA%E7%A1%80%E5%A4%87%E4%BB%BD%E5%B7%A5%E5%85%B7pg_basebackup/">
   <meta property="og:site_name" content="数据库的路上">
   <meta property="og:title" content="Postgresql 源码研究之基础备份工具pg_basebackup">
   <meta property="og:description" content="pg_basebackup介绍 pg_basebackup 是 PostgreSQL 内置的 物理备份工具，用于创建数据库集群的 一致基础备份。它支持 在线热备份（备份时数据库可正常读写），是实现高可用性（如流复制）和灾难恢复的核心工具之一
@@ -195,7 +195,7 @@ cleanup_directories_atexit()` - 退出时清理
 ▶ 对于采用流复制备份单独启动一个进程接收wal日志（数据库在备份期间还存在并发写入的情况）	StartLogStreamer(xlogstart..)
 会使用临时物理复制槽位，保证wal在备份期间不丢失 zhou=# select slot_name from pg_replication_slots ; slot_name --------------------- pg_basebackup_19476 (1 row) ▶ 循环接收服务端发送过来的备份数据直到结束 ReceiveArchiveStream(conn, client_compress);">
 
-  <link rel="canonical" href="https://gitcode.com/maozicb/database_doc/posts/db/postgresql/postgresql-%E6%BA%90%E7%A0%81%E7%A0%94%E7%A9%B6%E4%B9%8B%E5%9F%BA%E7%A1%80%E5%A4%87%E4%BB%BD%E5%B7%A5%E5%85%B7pg_basebackup/" />
+  <link rel="canonical" href="https://github.com/maozicb/maozicb.github.io/posts/db/postgresql/postgresql-%E6%BA%90%E7%A0%81%E7%A0%94%E7%A9%B6%E4%B9%8B%E5%9F%BA%E7%A1%80%E5%A4%87%E4%BB%BD%E5%B7%A5%E5%85%B7pg_basebackup/" />
 </head>
 <body
     class="bg-(--bg) text-black antialiased duration-200 ease-out [-webkit-tap-highlight-color:transparent] dark:text-white"
@@ -205,7 +205,7 @@ cleanup_directories_atexit()` - 退出时清理
   <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
     <a
       class="-translate-y-[1px] text-2xl font-medium"
-      href="https://gitcode.com/maozicb/database_doc/"
+      href="https://github.com/maozicb/maozicb.github.io/"
       >数据库的路上</a
     >
     <div
@@ -270,11 +270,11 @@ cleanup_directories_atexit()` - 退出时清理
       class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"
     ><a
         class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
-        href="/maozicb/database_doc/about/"
+        href="/maozicb/maozicb.github.io/about/"
         >About</a
       ><a
         class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
-        href="/maozicb/database_doc/contact/"
+        href="/maozicb/maozicb.github.io/contact/"
         >Contact</a
       ></nav><nav
       class="mt-12 flex justify-center space-x-10 lg:mt-0 lg:items-center ltr:lg:ml-14 rtl:space-x-reverse rtl:lg:mr-14 dark:invert"
@@ -282,7 +282,7 @@ cleanup_directories_atexit()` - 退出时清理
       <a
         class="h-7 w-7 text-[0px] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6"
         style="--url: url(./github.svg)"
-        href="https://github.com/newusername"
+        href="https://github.com/maozicb"
         target="_blank"
         rel="me"
       >github</a>
@@ -429,13 +429,13 @@ pg_basebackup -h 127.0.0.1 -p 5432 -D /Users/zhou/soft/pgsql/backup/base2 -i bas
 
   <nav
     class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg leading-[1.2]! *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"
-  ><a class="ltr:pr-3 rtl:pl-3" href="https://gitcode.com/maozicb/database_doc/posts/db/opengauss/opengauss_%E5%90%AF%E5%8A%A8%E9%9B%86%E7%BE%A4%E7%AB%9F%E9%9D%A0%E5%88%A0%E6%96%87%E4%BB%B6/"
+  ><a class="ltr:pr-3 rtl:pl-3" href="https://github.com/maozicb/maozicb.github.io/posts/db/opengauss/opengauss_%E5%90%AF%E5%8A%A8%E9%9B%86%E7%BE%A4%E7%AB%9F%E9%9D%A0%E5%88%A0%E6%96%87%E4%BB%B6/"
       ><span class="ltr:mr-1.5 rtl:ml-1.5">←</span><span>OpenGauss 启动集群竟靠删文件？这是什么「逆向操作」</span></a
     ></nav></article></main><footer
   class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
 >
   <div class="mr-auto">&copy;2025
-    <a class="link" href="https://gitcode.com/maozicb/database_doc/">数据库的路上</a></div>
+    <a class="link" href="https://github.com/maozicb/maozicb.github.io/">数据库的路上</a></div>
 </footer>
 </body>
 </html>
