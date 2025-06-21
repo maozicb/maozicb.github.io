@@ -1,0 +1,601 @@
+<!doctype html>
+
+
+
+
+
+
+
+<html
+  class="not-ready lg:text-base"
+  style="--bg:#faf8f1"
+  lang="en-us"
+  dir="ltr"
+><head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, shrink-to-fit=no"
+  />
+
+  
+  <title>从数据库源码比较 PostgreSql和OpenGauss的启动过程 - 数据库的路上</title>
+
+  
+  <meta name="theme-color" />
+
+  <meta name="description" content="测试环境版本：
+
+Postgresql 17
+OpenGauss 6.0
+
+启动命令比较
+
+  
+      
+          数据库
+          启动命令
+          起始代码文件
+          执行启动数据库的命令
+      
+  
+  
+      
+          postgresql
+          pg_ctl start
+          pg_ctl.c
+          通过execl 调用postgres 程序
+      
+      
+          opengaussdb
+          gs_ctl start
+          pg_ctl.cpp
+          通过execl 调用gaussdb  程序
+      
+  
+
+Postgresql的堆栈和具体代码
+
+opengauss的堆栈和具体代码
+
+数据库主进程对比
+
+  
+      
+          数据库名
+          主函数路径
+          进程名
+      
+  
+  
+      
+          Postgresql
+          src/backend/main/main.c
+          postgres
+      
+      
+          opengauss
+          src/gausskernel/process/main/main.cpp
+          gaussdb
+      
+  
+
+openGauss 与 PostgreSQL 的 main 函数比较
+openGauss 和 PostgreSQL 的 main 函数都是数据库系统的入口点，但它们在实现上有一些重要区别。以下是主要比较点：
+相似之处
+
+
+基本功能：两者都作为数据库系统的入口点，负责初始化环境并分发到不同的运行模式（如 postmaster、单用户模式、引导模式等）。
+
+
+命令行参数处理：都支持类似的命令行参数，如 --help、--version、--boot、--single 等。
+
+
+安全检查：都会检查是否以 root 用户运行，并禁止以 root 身份启动数据库。
+
+
+本地化设置：都会设置区域信息（locale）。
+
+
+主要差异
+
+
+线程模型 vs 进程模型：
+
+openGauss 使用线程模型：
+knl_thread_init(MASTER_THREAD);
+t_thrd.fake_session = create_session_context(t_thrd.top_mem_cxt, 0);
+
+PostgreSQL 使用进程模型，没有线程相关的初始化。
+
+
+
+透明大页（THP）禁用：" />
+  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="http://localhost:1313/main.min.css" />
+
+  
+  <link rel="preload" as="image" href="http://localhost:1313/theme.png" />
+
+  
+
+  <link rel="preload" as="image" href="http://localhost:1313/github.svg" />
+
+  <script
+    defer
+    src="http://localhost:1313/highlight.min.js"
+    onload="hljs.initHighlightingOnLoad();"
+  ></script>
+
+  
+  <link
+    rel="icon"
+    href="http://localhost:1313/favicon.ico"
+  />
+  <link
+    rel="apple-touch-icon"
+    href="http://localhost:1313/apple-touch-icon.png"
+  />
+
+  <meta name="generator" content="Hugo 0.145.0">
+</head>
+<body
+    class="bg-(--bg) text-black antialiased duration-200 ease-out [-webkit-tap-highlight-color:transparent] dark:text-white"
+  ><header
+  class="mx-auto flex h-[4.5rem] max-w-(--w) px-8 whitespace-nowrap lg:justify-center"
+>
+  <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
+    <a
+      class="-translate-y-[1px] text-2xl font-medium"
+      href="http://localhost:1313/"
+      >数据库的路上</a
+    >
+    <div
+      class="btn-dark text-[0px] ltr:ml-4 rtl:mr-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]"
+      role="button"
+      aria-label="Dark"
+    ></div>
+  </div>
+
+  <div
+    class="btn-menu relative z-50 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden ltr:-mr-8 rtl:-ml-8"
+    role="button"
+    aria-label="Menu"
+  ></div>
+
+  <script>
+    
+    const htmlClass = document.documentElement.classList;
+    setTimeout(() => {
+      htmlClass.remove('not-ready');
+    }, 10);
+
+    
+    const btnMenu = document.querySelector('.btn-menu');
+    btnMenu.addEventListener('click', () => {
+      htmlClass.toggle('open');
+    });
+
+    
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    const lightBg = '#faf8f1'.replace(/"/g, '');
+    const setDark = (isDark) => {
+      metaTheme.setAttribute('content', isDark ? '#000' : lightBg);
+      htmlClass[isDark ? 'add' : 'remove']('dark');
+      localStorage.setItem('dark', isDark);
+    };
+
+    
+    const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    if (htmlClass.contains('dark')) {
+      setDark(true);
+    } else {
+      const darkVal = localStorage.getItem('dark');
+      setDark(darkVal ? darkVal === 'true' : darkScheme.matches);
+    }
+
+    
+    darkScheme.addEventListener('change', (event) => {
+      setDark(event.matches);
+    });
+
+    
+    const btnDark = document.querySelector('.btn-dark');
+    btnDark.addEventListener('click', () => {
+      setDark(localStorage.getItem('dark') !== 'true');
+    });
+  </script>
+
+  <div
+    class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full flex-col justify-center bg-(--bg) pb-16 duration-200 select-none lg:static lg:h-auto lg:flex-row lg:bg-transparent! lg:pb-0 lg:transition-none"
+  ><nav
+      class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"
+    ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/about/"
+        >About</a
+      ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/contact/"
+        >Contact</a
+      ></nav><nav
+      class="mt-12 flex justify-center space-x-10 lg:mt-0 lg:items-center ltr:lg:ml-14 rtl:space-x-reverse rtl:lg:mr-14 dark:invert"
+    >
+      <a
+        class="h-7 w-7 text-[0px] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6"
+        style="--url: url(./github.svg)"
+        href="https://github.com/maozicb"
+        target="_blank"
+        rel="me"
+      >github</a>
+    </nav>
+  </div>
+</header>
+<main
+      class="prose prose-neutral dark:prose-invert relative mx-auto min-h-[calc(100vh-9rem)] max-w-(--w) px-8 pt-14 pb-16"
+    ><article>
+  <header class="mb-14">
+    <h1 class="my-0! pb-2.5">从数据库源码比较 PostgreSql和OpenGauss的启动过程</h1><div class="text-xs antialiased opacity-60"><time>Jun 16, 2025</time></div></header>
+
+  <section><p>测试环境版本：</p>
+<ul>
+<li>Postgresql 17</li>
+<li>OpenGauss 6.0</li>
+</ul>
+<h2 id="启动命令比较">启动命令比较</h2>
+<table>
+  <thead>
+      <tr>
+          <th>数据库</th>
+          <th>启动命令</th>
+          <th>起始代码文件</th>
+          <th>执行启动数据库的命令</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>postgresql</td>
+          <td>pg_ctl start</td>
+          <td>pg_ctl.c</td>
+          <td>通过execl 调用postgres 程序</td>
+      </tr>
+      <tr>
+          <td>opengaussdb</td>
+          <td>gs_ctl start</td>
+          <td>pg_ctl.cpp</td>
+          <td>通过execl 调用gaussdb  程序</td>
+      </tr>
+  </tbody>
+</table>
+<p>Postgresql的堆栈和具体代码
+<img src="https://s2.loli.net/2025/03/24/5SY26Pw8Ki3QrNm.jpg" alt="Postgresql"></p>
+<p>opengauss的堆栈和具体代码
+<img src="https://s2.loli.net/2025/03/24/tLIg9EMHokcGKNe.jpg" alt="opengauss"></p>
+<h2 id="数据库主进程对比">数据库主进程对比</h2>
+<table>
+  <thead>
+      <tr>
+          <th>数据库名</th>
+          <th>主函数路径</th>
+          <th>进程名</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Postgresql</td>
+          <td>src/backend/main/main.c</td>
+          <td>postgres</td>
+      </tr>
+      <tr>
+          <td>opengauss</td>
+          <td>src/gausskernel/process/main/main.cpp</td>
+          <td>gaussdb</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="opengauss-与-postgresql-的-main-函数比较">openGauss 与 PostgreSQL 的 main 函数比较</h3>
+<p>openGauss 和 PostgreSQL 的 main 函数都是数据库系统的入口点，但它们在实现上有一些重要区别。以下是主要比较点：</p>
+<h4 id="相似之处">相似之处</h4>
+<ol>
+<li>
+<p><strong>基本功能</strong>：两者都作为数据库系统的入口点，负责初始化环境并分发到不同的运行模式（如 postmaster、单用户模式、引导模式等）。</p>
+</li>
+<li>
+<p><strong>命令行参数处理</strong>：都支持类似的命令行参数，如 <code>--help</code>、<code>--version</code>、<code>--boot</code>、<code>--single</code> 等。</p>
+</li>
+<li>
+<p><strong>安全检查</strong>：都会检查是否以 root 用户运行，并禁止以 root 身份启动数据库。</p>
+</li>
+<li>
+<p><strong>本地化设置</strong>：都会设置区域信息（locale）。</p>
+</li>
+</ol>
+<h4 id="主要差异">主要差异</h4>
+<ol>
+<li>
+<p><strong>线程模型 vs 进程模型</strong>：</p>
+<ul>
+<li>openGauss 使用线程模型：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>knl_thread_init(MASTER_THREAD);
+</span></span><span style="display:flex;"><span>t_thrd.fake_session <span style="color:#f92672">=</span> create_session_context(t_thrd.top_mem_cxt, <span style="color:#ae81ff">0</span>);
+</span></span></code></pre></div></li>
+<li>PostgreSQL 使用进程模型，没有线程相关的初始化。</li>
+</ul>
+</li>
+<li>
+<p><strong>透明大页（THP）禁用</strong>：</p>
+<ul>
+<li>openGauss 在启动时禁用透明大页以优化性能：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#75715e">#if defined(ENABLE_LITE_MODE) &amp;&amp; defined(__linux__) &amp;&amp; defined(PR_SET_THP_DISABLE)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    prctl(PR_SET_THP_DISABLE, <span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#endif
+</span></span></span></code></pre></div></li>
+<li>PostgreSQL 没有这个特性。</li>
+</ul>
+</li>
+<li>
+<p><strong>云存储支持</strong>：</p>
+<ul>
+<li>openGauss 有 OBS（对象存储服务）相关初始化。</li>
+<li>PostgreSQL 没有云存储集成。</li>
+</ul>
+</li>
+<li>
+<p><strong>加密支持</strong>：</p>
+<ul>
+<li>openGauss 支持以加密模式运行：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>strcmp(progname, <span style="color:#e6db74">&#34;gs_encrypt&#34;</span>)) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">encrypte_main</span>(argc, argv);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div></li>
+<li>PostgreSQL 没有这个特性。</li>
+</ul>
+</li>
+<li>
+<p><strong>MMAP 阈值设置</strong>：</p>
+<ul>
+<li>openGauss 允许通过环境变量设置 MMAP 阈值：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>mmap_env <span style="color:#f92672">=</span> gs_getenv_r(<span style="color:#e6db74">&#34;GAUSS_MMAP_THRESHOLD&#34;</span>);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> (mmap_env <span style="color:#f92672">!=</span> NULL) {
+</span></span><span style="display:flex;"><span>    check_backend_env(mmap_env);
+</span></span><span style="display:flex;"><span>    mmap_threshold <span style="color:#f92672">=</span> (size_t)atol(mmap_env);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div></li>
+<li>PostgreSQL 没有这个特性。</li>
+</ul>
+</li>
+<li>
+<p><strong>命令行选项</strong>：</p>
+<ul>
+<li>openGauss 支持更多的命令行选项，如 <code>-M</code> 指定服务器模式（主、备、待机等）。</li>
+<li>PostgreSQL 的选项相对较少。</li>
+</ul>
+</li>
+</ol>
+<h4 id="总结">总结</h4>
+<p>openGauss 的 main 函数在 PostgreSQL 的基础上进行了大量扩展，主要增强了：</p>
+<ol>
+<li>线程模型替代进程模型</li>
+<li>更复杂的内存管理</li>
+<li>性能优化（如禁用透明大页）</li>
+<li>云原生支持</li>
+<li>更丰富的运行模式</li>
+<li>更强的安全特性（如加密支持）</li>
+</ol>
+<h2 id="postmastermain-函数对比">PostmasterMain 函数对比</h2>
+<p>PostmasterMain 函数是两款数据库的主服务进程入口函数，它负责整个数据库实例的生命周期管理，主要职责包括初始化进程，进程管理,连接管理等，是数据库中最重要的函数之一。</p>
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th>Postmaster 主函数源文件路径</th>
+          <th></th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Postgresql</td>
+          <td>src/backend/postmaster/postmaster.c</td>
+          <td></td>
+      </tr>
+      <tr>
+          <td>OpenGauss</td>
+          <td>src/gausskernel/process/postmaster/postmaster.cpp</td>
+          <td></td>
+      </tr>
+  </tbody>
+</table>
+<p>openGauss 的 PostmasterMain函数与 PostgreSQL 的同名函数有许多相似之处，但也存在显著差异。以下是主要比较点：</p>
+<h3 id="相似之处-1">相似之处</h3>
+<ol>
+<li>
+<p><strong>基本框架</strong>：两者都是数据库服务器的主入口函数，负责初始化系统、处理命令行参数、设置监听端口和启动各种后台进程。</p>
+</li>
+<li>
+<p><strong>命令行参数处理</strong>：都使用类似的选项解析机制，许多参数如 <code>-D</code>（数据目录）、<code>-p</code>（端口）等保持一致。</p>
+</li>
+<li>
+<p><strong>内存管理初始化</strong>：都会初始化内存上下文系统，创建 postmaster 内存上下文。</p>
+</li>
+<li>
+<p><strong>配置文件处理</strong>：都会读取和处理配置文件（postgresql.conf）。</p>
+</li>
+</ol>
+<h3 id="主要差异-1">主要差异</h3>
+<ol>
+<li>
+<p><strong>集群模式支持</strong>：</p>
+<ul>
+<li>openGauss 增加了 <code>-M</code> 参数支持多种运行模式：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#66d9ef">case</span> <span style="color:#e6db74">&#39;M&#39;</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#ae81ff">0</span> <span style="color:#f92672">==</span> strncmp(optCtxt.optarg, <span style="color:#e6db74">&#34;primary&#34;</span>, strlen(<span style="color:#e6db74">&#34;primary&#34;</span>))) {
+</span></span><span style="display:flex;"><span>        t_thrd.xlog_cxt.server_mode <span style="color:#f92672">=</span> PRIMARY_MODE;
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">else</span> <span style="color:#a6e22e">if</span> (<span style="color:#ae81ff">0</span> <span style="color:#f92672">==</span> strncmp(optCtxt.optarg, <span style="color:#e6db74">&#34;standby&#34;</span>, strlen(<span style="color:#e6db74">&#34;standby&#34;</span>))) {
+</span></span><span style="display:flex;"><span>        t_thrd.xlog_cxt.server_mode <span style="color:#f92672">=</span> STANDBY_MODE;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// 还支持 pending、normal、cascade_standby、hadr_main_standby 等模式
+</span></span></span></code></pre></div></li>
+</ul>
+</li>
+<li>
+<p><strong>分布式架构支持</strong>：</p>
+<ul>
+<li>openGauss 增加了 <code>--coordinator</code> 和 <code>--datanode</code> 选项，支持分布式部署：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#66d9ef">if</span> (name <span style="color:#f92672">!=</span> NULL <span style="color:#f92672">&amp;&amp;</span> strcmp(name, <span style="color:#e6db74">&#34;coordinator&#34;</span>) <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span> <span style="color:#f92672">&amp;&amp;</span> value <span style="color:#f92672">==</span> NULL)
+</span></span><span style="display:flex;"><span>    g_instance.role <span style="color:#f92672">=</span> VCOORDINATOR;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">else</span> <span style="color:#a6e22e">if</span> (name <span style="color:#f92672">!=</span> NULL <span style="color:#f92672">&amp;&amp;</span> strcmp(name, <span style="color:#e6db74">&#34;datanode&#34;</span>) <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span> <span style="color:#f92672">&amp;&amp;</span> value <span style="color:#f92672">==</span> NULL)
+</span></span><span style="display:flex;"><span>    g_instance.role <span style="color:#f92672">=</span> VDATANODE;
+</span></span></code></pre></div></li>
+</ul>
+</li>
+<li>
+<p><strong>安全特性</strong>：</p>
+<ul>
+<li>openGauss 增加了安全模式选项：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#66d9ef">if</span> (name <span style="color:#f92672">!=</span> NULL <span style="color:#f92672">&amp;&amp;</span> strlen(name) <span style="color:#f92672">==</span> SECURITY_MODE_NAME_LEN <span style="color:#f92672">&amp;&amp;</span>
+</span></span><span style="display:flex;"><span>    strncmp(name, SECURITY_MODE_NAME, SECURITY_MODE_NAME_LEN) <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+</span></span><span style="display:flex;"><span>    isSecurityMode <span style="color:#f92672">=</span> true;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div></li>
+</ul>
+</li>
+<li>
+<p><strong>云存储支持</strong>：</p>
+<ul>
+<li>openGauss 增加了 OBS（对象存储服务）支持：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#75715e">#ifndef ENABLE_LITE_MODE
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    initOBSCacheObject();
+</span></span><span style="display:flex;"><span>    S3_init();
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#endif
+</span></span></span></code></pre></div></li>
+</ul>
+</li>
+<li>
+<p><strong>UDF 隔离执行</strong>：</p>
+<ul>
+<li>openGauss 增加了 Fenced UDF 模式：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#66d9ef">if</span> (FencedUDFMasterMode) {
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// 初始化线程参数池等
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    FencedUDFMasterMain(<span style="color:#ae81ff">0</span>, NULL);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div></li>
+</ul>
+</li>
+<li>
+<p><strong>DSS 设备支持</strong>：</p>
+<ul>
+<li>openGauss 增加了分布式存储服务支持：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#66d9ef">if</span> (dss_device_init(...) <span style="color:#f92672">!=</span> DSS_SUCCESS) {
+</span></span><span style="display:flex;"><span>    write_stderr(<span style="color:#e6db74">&#34;failed to init dss device</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>    ExitPostmaster(<span style="color:#ae81ff">1</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div></li>
+</ul>
+</li>
+<li>
+<p><strong>线程模型</strong>：</p>
+<ul>
+<li>openGauss 使用线程而非进程模型：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>t_thrd.proc_cxt.MyProcPid <span style="color:#f92672">=</span> PostmasterPid <span style="color:#f92672">=</span> gs_thread_self();
+</span></span></code></pre></div></li>
+<li>PostgreSQL 使用进程模型：<code>MyProcPid = PostmasterPid = getpid();</code></li>
+</ul>
+</li>
+<li>
+<p><strong>网络监听处理</strong>：</p>
+<ul>
+<li>openGauss 有更复杂的网络监听管理，支持动态重建监听地址：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> rebuild_listen_address_socket()
+</span></span></code></pre></div></li>
+</ul>
+</li>
+<li>
+<p><strong>并行恢复配置</strong>：</p>
+<ul>
+<li>openGauss 增加了并行恢复相关配置：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>ConfigRecoveryParallelism();
+</span></span><span style="display:flex;"><span>ProcessRedoCpuBindInfo();
+</span></span></code></pre></div></li>
+</ul>
+</li>
+</ol>
+<h3 id="总结-1">总结</h3>
+<p>openGauss 的 PostmasterMain 函数在 PostgreSQL 的基础上进行了大量扩展，主要增强了：</p>
+<ol>
+<li>企业级特性（安全模式、高可用性）</li>
+<li>分布式架构支持（协调节点、数据节点）</li>
+<li>云原生能力（对象存储集成）</li>
+<li>性能优化（并行恢复、CPU绑定）</li>
+<li>线程模型替代进程模型</li>
+</ol>
+<p>这些差异反映了 openGauss 作为企业级数据库的定位，更注重高可用、高性能和云原生特性。</p>
+<h2 id="启动完成后进程对比">启动完成后进程对比</h2>
+<p>postgresql 采用的是多进程架构</p>
+<pre tabindex="0"><code>129644 ?        Ss     0:00 /home/postgres/pgsql/bin/postgres
+129645 ?        Ss     0:00  \_ postgres: checkpointer 
+129646 ?        Ss     0:00  \_ postgres: background writer 
+129648 ?        Ss     0:00  \_ postgres: walwriter 
+129649 ?        Ss     0:00  \_ postgres: autovacuum launcher 
+129650 ?        Ss     0:00  \_ postgres: logical replication launcher
+</code></pre><p>opengauss 采用的是单进程多线程架构</p>
+<pre tabindex="0"><code>[opengauss@edc-pdf-dmdb02 include]$ ps -T -p 1085
+   PID   SPID TTY          TIME CMD
+  1085   1085 ?        00:00:00 gaussdb
+  1085   1091 ?        00:00:00 jemalloc_bg_thd
+  1085   1141 ?        00:00:00 gaussdb
+  1085   1142 ?        00:00:00 syslogger
+  1085   1143 ?        00:00:00 auditor
+  1085   1144 ?        00:00:00 jemalloc_bg_thd
+  1085   1145 ?        00:00:00 alarm
+  1085   1146 ?        00:00:00 jemalloc_bg_thd
+  1085   1147 ?        00:00:00 reaper
+  1085   1148 ?        00:00:00 jemalloc_bg_thd
+  1085   1172 ?        00:00:00 gaussdb
+  1085   1173 ?        00:00:00 gaussdb
+  1085   1174 ?        00:00:00 gaussdb
+  1085   1188 ?        00:00:00 checkpointer
+  1085   1189 ?        00:00:00 Spbgwriter
+  1085   1190 ?        00:00:00 pagewriter
+  1085   1191 ?        00:00:00 pagewriter
+  1085   1192 ?        00:00:00 pagewriter
+  1085   1193 ?        00:00:00 pagewriter
+  1085   1194 ?        00:00:00 pagewriter
+  1085   1212 ?        00:00:00 WALwriter
+  1085   1213 ?        00:00:00 WALwriteraux
+  1085   1215 ?        00:00:00 AVClauncher
+  1085   1216 ?        00:00:00 Jobscheduler
+  1085   1217 ?        00:00:00 asyncundolaunch
+  1085   1218 ?        00:00:00 globalstats
+  1085   1220 ?        00:00:00 applylauncher
+  1085   1221 ?        00:00:00 statscollector
+  1085   1222 ?        00:00:00 CfsShrinker
+  1085   1223 ?        00:00:00 percentworker
+  1085   1224 ?        00:00:00 ashworker
+  1085   1226 ?        00:00:00 TrackStmtWorker
+  1085   1227 ?        00:00:00 2pccleaner
+  1085   1228 ?        00:00:00 faultmonitor
+  1085   1229 ?        00:00:00 WLMworker
+  1085   1230 ?        00:00:00 WLMmonitor
+  1085   1231 ?        00:00:00 WLMarbiter
+  1085   1233 ?        00:00:00 undorecycler
+</code></pre><h2 id="总结-2">总结</h2>
+<p>从数据库启动流程的视角来看，openGauss在设计构建时大量借鉴了PostgreSQL的理念。在openGauss的代码中，PostgreSQL的影响清晰可辨，许多模块和逻辑都能看到其影子 。同时，openGauss积极创新，增添了一系列关键功能。例如，它支持云存储，满足了当下云计算环境下数据存储的需求；引入分布式架构，提升了系统的扩展性与性能，可应对大规模数据处理任务。此外，openGauss还进行了底层架构的重大变革，将原本的架构改为多线程架构。</p>
+</section>
+
+  <nav
+    class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg leading-[1.2]! *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"
+  ><a class="ltr:pr-3 rtl:pl-3" href="http://localhost:1313/posts/db/opengauss/opengauss-%E6%9C%8D%E5%8A%A1%E7%AB%AFgbk%E5%AD%97%E7%AC%A6%E9%9B%86%E5%92%8Cpostgresql%E5%AF%B9%E6%AF%94%E5%88%86%E6%9E%90/"
+      ><span class="ltr:mr-1.5 rtl:ml-1.5">←</span><span>OpenGauss 服务端GBK字符集和Postgresql对比分析</span></a
+    ><a
+      class="justify-end pl-3 ltr:ml-auto rtl:mr-auto"
+      href="http://localhost:1313/posts/db/opengauss/%E4%BC%81%E4%B8%9A%E7%89%88opengauss%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95/"
+      ><span>企业版OpenGauss安装部署问题记录</span><span class="ltr:ml-1.5 rtl:mr-1.5">→</span></a
+    ></nav></article></main><footer
+  class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
+>
+  <div class="mr-auto">&copy;2025
+    <a class="link" href="http://localhost:1313/">数据库的路上</a></div>
+</footer>
+</body>
+</html>

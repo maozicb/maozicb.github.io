@@ -1,0 +1,469 @@
+<!doctype html>
+
+
+
+
+
+
+
+<html
+  class="not-ready lg:text-base"
+  style="--bg:#faf8f1"
+  lang="en-us"
+  dir="ltr"
+><head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, shrink-to-fit=no"
+  />
+
+  
+  <title>OpenGauss 备份恢复实战之gs_probackup工具 - 数据库的路上</title>
+
+  
+  <meta name="theme-color" />
+
+  <meta name="description" content="全量备份
+
+确定存放备份文件的路径，初始化备份路径
+
+gs_probackup init -B backup-path 
+
+在备份路径下添加一个备份实例，一个实例对应一个文件夹
+
+gs_probackup add-instance -B backup-path 
+
+[opengauss@node1]$ gs_probackup add-instance -B /home/opengauss/backup/ --instance instance1
+
+[opengauss@node1]$ ll
+total 0
+drwx------ 2 opengauss dbgrp 31 Apr 27 14:45 instance1
+
+
+执行备份
+先执行全量备份
+
+
+gs_probackup backup -B /home/opengauss/backup/ --instance=instance1 -b full 
+
+[opengauss@node1 instance1]$ gs_probackup backup -B /home/opengauss/backup/ --instance=instance1 -b full 
+INFO: Backup start, gs_probackup version: 2.4.2, instance: instance1, backup ID: SVQLS2, backup mode: FULL, wal mode: STREAM, remote: false, compress-algorithm: none, compress-level: 1
+LOG: Backup destination is initialized
+LOG: This openGauss instance was initialized with data block checksums. Data block corruption will be detected
+LOG: Database backup start
+LOG: started streaming WAL at 0/5C000000 (timeline 1)
+[2025-05-04 20:38:26]: check identify system success                                                
+[2025-05-04 20:38:26]: send START_REPLICATION 0/5C000000 success                                    
+[2025-05-04 20:38:26]: keepalive message is received                                                
+[2025-05-04 20:38:26]: keepalive message is received                                                
+INFO: PGDATA size: 1707MB
+INFO: Start backing up files
+LOG: Creating page header map &#34;/home/opengauss/backup/backups/instance1/SVQLS2/page_header_map&#34;
+[2025-05-04 20:38:31]: keepalive message is received                                                
+Progress: [==================================================] 100% (2726/2726, done_files/total_files). backup file 
+INFO: Finish backuping file
+INFO: Data files are transferred, time elapsed: 7s
+INFO: wait for pg_stop_backup()
+INFO: pg_stop backup() successfully executed
+LOG: stop_lsn: 0/5C0001E8
+LOG: Looking for LSN 0/5C0001E8 in segment: 00000001000000000000005C
+LOG: Found WAL segment: /home/opengauss/backup/backups/instance1/SVQLS2/database/pg_xlog/00000001000000000000005C
+LOG: Thread [0]: Opening WAL segment &#34;/home/opengauss/backup/backups/instance1/SVQLS2/database/pg_xlog/00000001000000000000005C&#34;
+LOG: Found LSN: 0/5C0001E8
+LOG: finished streaming WAL at 0/5D000000 (timeline 1)
+LOG: Getting the Recovery Time from WAL
+LOG: Thread [0]: Opening WAL segment &#34;/home/opengauss/backup/backups/instance1/SVQLS2/database/pg_xlog/00000001000000000000005C&#34;
+INFO: Syncing backup files to disk
+Progress: [==================================================] 100% (2726/2726, done_files/total_files). Sync backup file 
+INFO: Finish Syncing backup files.
+INFO: Backup files are synced, time elapsed: 1s
+INFO: Validating backup SVQLS2
+INFO: Begin validate file
+Progress: [==================================================] 100% (2728/2728, done_files/total_files). validate file 
+INFO: Finish validate file. 
+INFO: Backup SVQLS2 data files are valid
+INFO: Backup SVQLS2 resident size: 1724MB
+INFO: Backup SVQLS2 completed
+查看备份" />
+  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="http://localhost:1313/main.min.css" />
+
+  
+  <link rel="preload" as="image" href="http://localhost:1313/theme.png" />
+
+  
+
+  <link rel="preload" as="image" href="http://localhost:1313/github.svg" />
+
+  <script
+    defer
+    src="http://localhost:1313/highlight.min.js"
+    onload="hljs.initHighlightingOnLoad();"
+  ></script>
+
+  
+  <link
+    rel="icon"
+    href="http://localhost:1313/favicon.ico"
+  />
+  <link
+    rel="apple-touch-icon"
+    href="http://localhost:1313/apple-touch-icon.png"
+  />
+
+  <meta name="generator" content="Hugo 0.145.0">
+</head>
+<body
+    class="bg-(--bg) text-black antialiased duration-200 ease-out [-webkit-tap-highlight-color:transparent] dark:text-white"
+  ><header
+  class="mx-auto flex h-[4.5rem] max-w-(--w) px-8 whitespace-nowrap lg:justify-center"
+>
+  <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
+    <a
+      class="-translate-y-[1px] text-2xl font-medium"
+      href="http://localhost:1313/"
+      >数据库的路上</a
+    >
+    <div
+      class="btn-dark text-[0px] ltr:ml-4 rtl:mr-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]"
+      role="button"
+      aria-label="Dark"
+    ></div>
+  </div>
+
+  <div
+    class="btn-menu relative z-50 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden ltr:-mr-8 rtl:-ml-8"
+    role="button"
+    aria-label="Menu"
+  ></div>
+
+  <script>
+    
+    const htmlClass = document.documentElement.classList;
+    setTimeout(() => {
+      htmlClass.remove('not-ready');
+    }, 10);
+
+    
+    const btnMenu = document.querySelector('.btn-menu');
+    btnMenu.addEventListener('click', () => {
+      htmlClass.toggle('open');
+    });
+
+    
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    const lightBg = '#faf8f1'.replace(/"/g, '');
+    const setDark = (isDark) => {
+      metaTheme.setAttribute('content', isDark ? '#000' : lightBg);
+      htmlClass[isDark ? 'add' : 'remove']('dark');
+      localStorage.setItem('dark', isDark);
+    };
+
+    
+    const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    if (htmlClass.contains('dark')) {
+      setDark(true);
+    } else {
+      const darkVal = localStorage.getItem('dark');
+      setDark(darkVal ? darkVal === 'true' : darkScheme.matches);
+    }
+
+    
+    darkScheme.addEventListener('change', (event) => {
+      setDark(event.matches);
+    });
+
+    
+    const btnDark = document.querySelector('.btn-dark');
+    btnDark.addEventListener('click', () => {
+      setDark(localStorage.getItem('dark') !== 'true');
+    });
+  </script>
+
+  <div
+    class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full flex-col justify-center bg-(--bg) pb-16 duration-200 select-none lg:static lg:h-auto lg:flex-row lg:bg-transparent! lg:pb-0 lg:transition-none"
+  ><nav
+      class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"
+    ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/about/"
+        >About</a
+      ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/contact/"
+        >Contact</a
+      ></nav><nav
+      class="mt-12 flex justify-center space-x-10 lg:mt-0 lg:items-center ltr:lg:ml-14 rtl:space-x-reverse rtl:lg:mr-14 dark:invert"
+    >
+      <a
+        class="h-7 w-7 text-[0px] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6"
+        style="--url: url(./github.svg)"
+        href="https://github.com/maozicb"
+        target="_blank"
+        rel="me"
+      >github</a>
+    </nav>
+  </div>
+</header>
+<main
+      class="prose prose-neutral dark:prose-invert relative mx-auto min-h-[calc(100vh-9rem)] max-w-(--w) px-8 pt-14 pb-16"
+    ><article>
+  <header class="mb-14">
+    <h1 class="my-0! pb-2.5">OpenGauss 备份恢复实战之gs_probackup工具</h1><div class="text-xs antialiased opacity-60"><time>Jun 16, 2025</time></div></header>
+
+  <section><h2 id="全量备份">全量备份</h2>
+<ol>
+<li>确定存放备份文件的路径，初始化备份路径</li>
+</ol>
+<pre tabindex="0"><code>gs_probackup init -B backup-path 
+</code></pre><ol start="2">
+<li>在备份路径下添加一个备份实例，一个实例对应一个文件夹</li>
+</ol>
+<pre tabindex="0"><code>gs_probackup add-instance -B backup-path 
+
+[opengauss@node1]$ gs_probackup add-instance -B /home/opengauss/backup/ --instance instance1
+
+[opengauss@node1]$ ll
+total 0
+drwx------ 2 opengauss dbgrp 31 Apr 27 14:45 instance1
+</code></pre><ol start="3">
+<li>
+<p>执行备份</p>
+<p>先执行全量备份</p>
+</li>
+</ol>
+<pre tabindex="0"><code>gs_probackup backup -B /home/opengauss/backup/ --instance=instance1 -b full 
+
+[opengauss@node1 instance1]$ gs_probackup backup -B /home/opengauss/backup/ --instance=instance1 -b full 
+INFO: Backup start, gs_probackup version: 2.4.2, instance: instance1, backup ID: SVQLS2, backup mode: FULL, wal mode: STREAM, remote: false, compress-algorithm: none, compress-level: 1
+LOG: Backup destination is initialized
+LOG: This openGauss instance was initialized with data block checksums. Data block corruption will be detected
+LOG: Database backup start
+LOG: started streaming WAL at 0/5C000000 (timeline 1)
+[2025-05-04 20:38:26]: check identify system success                                                
+[2025-05-04 20:38:26]: send START_REPLICATION 0/5C000000 success                                    
+[2025-05-04 20:38:26]: keepalive message is received                                                
+[2025-05-04 20:38:26]: keepalive message is received                                                
+INFO: PGDATA size: 1707MB
+INFO: Start backing up files
+LOG: Creating page header map &#34;/home/opengauss/backup/backups/instance1/SVQLS2/page_header_map&#34;
+[2025-05-04 20:38:31]: keepalive message is received                                                
+Progress: [==================================================] 100% (2726/2726, done_files/total_files). backup file 
+INFO: Finish backuping file
+INFO: Data files are transferred, time elapsed: 7s
+INFO: wait for pg_stop_backup()
+INFO: pg_stop backup() successfully executed
+LOG: stop_lsn: 0/5C0001E8
+LOG: Looking for LSN 0/5C0001E8 in segment: 00000001000000000000005C
+LOG: Found WAL segment: /home/opengauss/backup/backups/instance1/SVQLS2/database/pg_xlog/00000001000000000000005C
+LOG: Thread [0]: Opening WAL segment &#34;/home/opengauss/backup/backups/instance1/SVQLS2/database/pg_xlog/00000001000000000000005C&#34;
+LOG: Found LSN: 0/5C0001E8
+LOG: finished streaming WAL at 0/5D000000 (timeline 1)
+LOG: Getting the Recovery Time from WAL
+LOG: Thread [0]: Opening WAL segment &#34;/home/opengauss/backup/backups/instance1/SVQLS2/database/pg_xlog/00000001000000000000005C&#34;
+INFO: Syncing backup files to disk
+Progress: [==================================================] 100% (2726/2726, done_files/total_files). Sync backup file 
+INFO: Finish Syncing backup files.
+INFO: Backup files are synced, time elapsed: 1s
+INFO: Validating backup SVQLS2
+INFO: Begin validate file
+Progress: [==================================================] 100% (2728/2728, done_files/total_files). validate file 
+INFO: Finish validate file. 
+INFO: Backup SVQLS2 data files are valid
+INFO: Backup SVQLS2 resident size: 1724MB
+INFO: Backup SVQLS2 completed
+</code></pre><p>查看备份</p>
+<pre tabindex="0"><code>[opengauss@node1 instance1]$ gs_probackup show  -B /home/opengauss/backup/ 
+
+BACKUP INSTANCE &#39;instance1&#39;
+======================================================================================================================================================
+ Instance   Version  ID      Recovery Time           Mode  WAL Mode  TLI  Time    Data   WAL  Zratio  Start LSN   Stop LSN    Type  S3 Status  Status 
+======================================================================================================================================================
+ instance1  9.2      SVQLS2  2025-05-04 20:38:33+08  FULL  STREAM    1/0    9s  1708MB  16MB    1.00  0/5C000028  0/5C0001E8  FILE  UNKNOWN    OK   
+</code></pre><h2 id="增量备份">增量备份</h2>
+<h4 id="执行增量备份报错提示-error-cannot-get-cbm-tracked-lsn-location-maybe-enable_cbm_tracking-is-off">执行增量备份报错，提示 ERROR: cannot get cbm tracked lsn location, maybe enable_cbm_tracking is off</h4>
+<pre tabindex="0"><code>[opengauss@node1 ~]$ gs_probackup backup -B /home/opengauss/backup/ --instance=instance1 -b ptrack 
+INFO: Backup start, gs_probackup version: 2.4.2, instance: instance1, backup ID: SVQMFW, backup mode: PTRACK, wal mode: STREAM, remote: false, compress-algorithm: none, compress-level: 1
+LOG: Backup destination is initialized
+LOG: This openGauss instance was initialized with data block checksums. Data block corruption will be detected
+LOG: Database backup start
+LOG: Latest valid FULL backup: SVQMFB
+WARNING: Backup SVQMFO has status: ERROR. Cannot be a parent.
+INFO: Parent backup: SVQMFB
+LOG: started streaming WAL at 0/4000000 (timeline 1)
+[2025-05-04 20:52:44]: check identify system success                                                
+[2025-05-04 20:52:44]: send START_REPLICATION 0/4000000 success                                     
+INFO: PGDATA size: 622MB
+LOG: Current tli: 1
+LOG: Parent start_lsn: 0/3000028
+LOG: start_lsn: 0/4000028
+INFO: Extracting pagemap of changed blocks
+INFO: change bitmap start lsn location is 0/3000028
+[2025-05-04 20:52:44]: keepalive message is received                                                
+ERROR: cannot get cbm tracked lsn location, maybe enable_cbm_tracking is off
+WARNING: backup in progress, stop backup
+[2025-05-04 20:52:44]: keepalive message is received                                                
+INFO: wait for pg_stop_backup()
+INFO: pg_stop backup() successfully executed
+WARNING: Backup SVQMFW is running, setting its status to ERROR
+</code></pre><h4 id="增量备份要求-参数设置-enable_cbm_tracking--on">增量备份要求 参数设置 enable_cbm_tracking = on</h4>
+<pre tabindex="0"><code>[opengauss@node1 ~]$ gs_guc  reload -c &#34;enable_cbm_tracking = on&#34;
+The gs_guc run with the following arguments: [gs_guc -c enable_cbm_tracking = on reload ].
+NOTICE: Turn on cbm tracking function.
+expected instance path: [/home/opengauss/gauss_data/postgresql.conf]
+gs_guc reload: enable_cbm_tracking=on: [/home/opengauss/gauss_data/postgresql.conf]
+server signaled
+
+Total instances: 1. Failed instances: 0.
+Success to perform gs_guc!
+</code></pre><pre tabindex="0"><code>gs_probackup backup -B /home/opengauss/backup/ --instance=instance1 -b ptrack 
+</code></pre><h4 id="继续报错-error--could-not-find-valid-cbm-file-that-contains-the-merging-start-point">继续报错 ERROR:  could not find valid CBM file that contains the merging start point</h4>
+<pre tabindex="0"><code>[opengauss@node1 ~]$ gs_probackup backup -B /home/opengauss/backup/ --instance=instance1 -b ptrack 
+INFO: Backup start, gs_probackup version: 2.4.2, instance: instance1, backup ID: SVQMIW, backup mode: PTRACK, wal mode: STREAM, remote: false, compress-algorithm: none, compress-level: 1
+LOG: Backup destination is initialized
+LOG: This openGauss instance was initialized with data block checksums. Data block corruption will be detected
+LOG: Database backup start
+LOG: Latest valid FULL backup: SVQMFB
+WARNING: Backup SVQMFW has status: ERROR. Cannot be a parent.
+WARNING: Backup SVQMFO has status: ERROR. Cannot be a parent.
+INFO: Parent backup: SVQMFB
+LOG: started streaming WAL at 0/6000000 (timeline 1)
+[2025-05-04 20:54:32]: check identify system success                                                
+[2025-05-04 20:54:32]: send START_REPLICATION 0/6000000 success                                     
+[2025-05-04 20:54:32]: keepalive message is received                                                
+INFO: PGDATA size: 622MB
+LOG: Current tli: 1
+LOG: Parent start_lsn: 0/3000028
+LOG: start_lsn: 0/6000028
+INFO: Extracting pagemap of changed blocks
+INFO: change bitmap start lsn location is 0/3000028
+INFO: change bitmap end lsn location is 00000000/06000028
+[2025-05-04 20:54:32]: keepalive message is received                                                
+ERROR: query failed: ERROR:  could not find valid CBM file that contains the merging start point 00000000/03000028
+ query was: SELECT path,changed_block_number,changed_block_list FROM                          pg_cbm_get_changed_block($1, $2)
+Please check the replication slots, if it has slots useless,delete it and try again.
+WARNING: backup in progress, stop backup
+INFO: wait for pg_stop_backup()
+INFO: pg_stop backup() successfully executed
+WARNING: Backup SVQMIW is running, setting its status to ERROR
+</code></pre><p>原因是增量备份需要建立在全量备份之上，而当前的全量备份是在未开启enable_cbm_tracking 备份的，所有在此全量备份的的增量备份找不到有效的CBM file。解决方法是开启enable_cbm_tracking 参数后重新做一次全量备份。</p>
+<h4 id="最终全量和增量都成功了">最终全量和增量都成功了</h4>
+<pre tabindex="0"><code>[opengauss@node1 ~]$ gs_probackup show  -B /home/opengauss/backup/ 
+
+BACKUP INSTANCE &#39;instance1&#39;
+=====================================================================================================================================================
+ Instance   Version  ID      Recovery Time           Mode    WAL Mode  TLI  Time   Data   WAL  Zratio  Start LSN  Stop LSN   Type  S3 Status  Status 
+=====================================================================================================================================================
+ instance1  9.2      SVQNR6  2025-05-04 21:21:07+08  PTRACK  STREAM    1/1    4s  256MB  16MB    1.00  0/D000028  0/D0001E8  FILE  UNKNOWN    OK     
+ instance1  9.2      SVQNQY  2025-05-04 21:20:59+08  FULL    STREAM    1/0    4s  622MB  16MB    1.00  0/C000028  0/C0001E8  FILE  UNKNOWN    OK     
+ instance1  9.2      SVQNCO  ----                    PTRACK  STREAM    1/1    2s      0     0    1.00  0/8000028  0/0        FILE  UNKNOWN    ERROR  
+ instance1  9.2      SVQMFB  2025-05-04 20:52:26+08  FULL    STREAM    1/0    4s  622MB  16MB    1.00  0/3000028  0/30001E8  FILE  UNKNOWN    OK  
+</code></pre><h2 id="测试数据恢复">测试数据恢复</h2>
+<h3 id="恢复到某个时间">恢复到某个时间</h3>
+<h4 id="准备测试数据">准备测试数据</h4>
+<pre tabindex="0"><code>openGauss=# select * from backup_time;
+ id |       time_t        
+----+---------------------
+  1 | 2025-05-08 17:15:37
+  2 | 2025-05-08 17:15:46
+(2 rows)
+</code></pre><h4 id="做一次增量备份">做一次增量备份</h4>
+<pre tabindex="0"><code>opengauss@node1 ~]$ gs_probackup show -B /home/opengauss/backup/
+
+BACKUP INSTANCE &#39;instance1&#39;
+=======================================================================================================================================================
+ Instance   Version  ID      Recovery Time           Mode    WAL Mode  TLI  Time   Data   WAL  Zratio  Start LSN   Stop LSN    Type  S3 Status  Status 
+=======================================================================================================================================================
+ instance1  9.2      SVXT0M  2025-05-08 17:58:02+08  PTRACK  STREAM    1/1   11s  301MB  16MB    1.00  0/12000028  0/120001E8  FILE  UNKNOWN    OK     
+ instance1  9.2      SVQNR6  2025-05-04 21:21:07+08  PTRACK  STREAM    1/1    4s  256MB  16MB    1.00  0/D000028   0/D0001E8   FILE  UNKNOWN    OK     
+ instance1  9.2      SVQNQY  2025-05-04 21:20:59+08  FULL    STREAM    1/0    4s  622MB  16MB    1.00  0/C000028   0/C0001E8   FILE  UNKNOWN    OK   
+</code></pre><h4 id="停止数据库">停止数据库</h4>
+<pre tabindex="0"><code>[opengauss@node1 ~]$ gs_ctl stop
+[2025-05-08 18:00:13.991][1246928][][gs_ctl]: gs_ctl stopped ,datadir is /home/opengauss/gauss_data 
+waiting for server to shut down..... done
+server stopped
+</code></pre><h4 id="模拟数据丢失">模拟数据丢失</h4>
+<p>移走数据目录</p>
+<pre tabindex="0"><code>[opengauss@node1 ~]$ mv gauss_data/ gauss_data_bak
+</code></pre><h4 id="开始恢复到指定时间点">开始恢复到指定时间点</h4>
+<p>指定要恢复到的时间，当前只能指定备份中的recovery-time。不支持随意指定时间点</p>
+<pre tabindex="0"><code>[opengauss@node1 ~]$ gs_probackup restore  -B /home/opengauss/backup/ --instance instance1 --recovery-target-time=&#39;2025-05-08 17:58:02&#39;
+LOG: Restore begin.
+LOG: there is no file tablespace_map
+LOG: check tablespace directories of backup SVXT0M
+LOG: check external directories of backup SVXT0M
+INFO: Validating parents for backup SVXT0M
+INFO: Validating backup SVQNQY
+INFO: Begin validate file
+Progress: [==================================================] 100% (1656/1656, done_files/total_files). validate file 
+INFO: Finish validate file. 
+INFO: Backup SVQNQY data files are valid
+INFO: Validating backup SVQNR6
+INFO: Begin validate file
+Progress: [==================================================] 100% (1656/1656, done_files/total_files). validate file 
+INFO: Finish validate file. 
+INFO: Backup SVQNR6 data files are valid
+INFO: Validating backup SVXT0M
+INFO: Begin validate file
+Progress: [==================================================] 100% (1677/1677, done_files/total_files). validate file 
+INFO: Finish validate file. 
+INFO: Backup SVXT0M data files are valid
+LOG: Thread [1]: Opening WAL segment &#34;/home/opengauss/backup/backups/instance1/SVXT0M/database/pg_xlog/000000010000000000000012&#34;
+INFO: Backup validation completed successfully on time 2025-05-08 17:58:02+08, xid 13837 and LSN 0/120001E8
+INFO: Backup SVXT0M is valid.
+INFO: Restoring the database from backup at 2025-05-08 17:57:58+08
+LOG: there is no file tablespace_map
+LOG: Restore directories and symlinks... in /home/opengauss/gauss_data
+INFO: Start restoring backup files. DATA size: 666MB
+INFO: Begin restore file
+Progress: [==================================================] 100% (1677/1677, done_files/total_files). Restore file 
+INFO: Finish restore file
+INFO: Backup files are restored. Transfered bytes: 666MB, time elapsed: 1s
+INFO: Restore incremental ratio (less is better): 100% (666MB/666MB)
+INFO: Start Syncing restored files to disk
+Progress: [==================================================] 100% (1677/1677, done_files/total_files). Sync restore file 
+INFO: Finish Syncing restored files.
+INFO: Restored backup files are synced, time elapsed: 1s
+INFO: Restore of backup SVXT0M completed.
+</code></pre><h4 id="检查测试数据恢复成功">检查测试数据恢复成功</h4>
+<pre tabindex="0"><code>
+[opengauss@node1 ~]$ gsql -r -d postgres
+gsql ((openGauss 7.0.0-RC1 build cff7b04d) compiled at 2025-04-22 13:13:05 commit 0 last mr  debug)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type &#34;help&#34; for help.
+
+openGauss=# \d
+                                   List of relations
+ Schema |        Name        |   Type   |   Owner   |             Storage              
+--------+--------------------+----------+-----------+----------------------------------
+ public | backup_time        | table    | opengauss | {orientation=row,compression=no}
+ public | backup_time_id_seq | sequence | opengauss | 
+(2 rows)
+
+openGauss=# select * from backup_time;
+ id |       time_t        
+----+---------------------
+  1 | 2025-05-08 17:15:37
+  2 | 2025-05-08 17:15:46
+(2 rows)
+
+o
+</code></pre></section>
+
+  <nav
+    class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg leading-[1.2]! *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"
+  ><a class="ltr:pr-3 rtl:pl-3" href="http://localhost:1313/posts/db/opengauss/%E5%80%9F%E5%8A%A9gdb-python-%E6%A8%A1%E5%9D%97%E8%B0%83%E8%AF%95-opengauss/"
+      ><span class="ltr:mr-1.5 rtl:ml-1.5">←</span><span>借助GDB python 模块调试 OpenGauss</span></a
+    ><a
+      class="justify-end pl-3 ltr:ml-auto rtl:mr-auto"
+      href="http://localhost:1313/posts/db/opengauss/opengauss-%E6%9C%8D%E5%8A%A1%E7%AB%AFgbk%E5%AD%97%E7%AC%A6%E9%9B%86%E5%92%8Cpostgresql%E5%AF%B9%E6%AF%94%E5%88%86%E6%9E%90/"
+      ><span>OpenGauss 服务端GBK字符集和Postgresql对比分析</span><span class="ltr:ml-1.5 rtl:mr-1.5">→</span></a
+    ></nav></article></main><footer
+  class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
+>
+  <div class="mr-auto">&copy;2025
+    <a class="link" href="http://localhost:1313/">数据库的路上</a></div>
+</footer>
+</body>
+</html>

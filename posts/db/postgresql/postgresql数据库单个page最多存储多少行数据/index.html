@@ -1,0 +1,415 @@
+<!doctype html>
+
+
+
+
+
+
+
+<html
+  class="not-ready lg:text-base"
+  style="--bg:#faf8f1"
+  lang="en-us"
+  dir="ltr"
+><head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, shrink-to-fit=no"
+  />
+
+  
+  <title>Postgresql数据库单个Page最多存储多少行数据 - 数据库的路上</title>
+
+  
+  <meta name="theme-color" />
+
+  <meta name="description" content="源码src/include/storage/bufpage.h 定义了一个page的结构如下
+ * &#43;----------------&#43;---------------------------------&#43;
+ * | PageHeaderData | linp1 linp2 linp3 ...           |
+ * &#43;-----------&#43;----&#43;---------------------------------&#43;
+ * | ... linpN |									  |
+ * &#43;-----------&#43;--------------------------------------&#43;
+ * |		   ^ pd_lower							  |
+ * |												  |
+ * |			 v pd_upper							  |
+ * &#43;-------------&#43;------------------------------------&#43;
+ * |			 | tupleN ...                         |
+ * &#43;-------------&#43;------------------&#43;-----------------&#43;
+ * |	   ... tuple3 tuple2 tuple1 | &#34;special space&#34; |
+ * &#43;--------------------------------&#43;-----------------&#43;
+一、页面整体结构
+
+页面头部（Page Header，24 字节）页面头部存储元数据，用于描述页面状态和管理数据
+行指针表（Line Pointer Array）紧接页面头部之后，存储页面中所有元组的位置信息，每个指针占 4 字节
+数据区域（Data Section）
+存储实际的元组数据，每个元组由 元组头部（Tuple Header 23 个字节） 和 数据内容 组成
+空闲空间（Free Space）
+位于数据区域末尾，用于新元组的插入或元组更新时的扩展。
+通过 空闲列表（Free List） 管理可用空间，记录未使用的字节范围。
+
+Page（8KB）结构：
+&#43;-------------------&#43;
+| 页面头部（24字节） |
+&#43;-------------------&#43;
+| 行指针表（N×4字节）| 每个指针记录元组的位置和状态
+&#43;-------------------&#43;
+| 数据区域（可变）   | 元组数据（头部&#43;内容），按行指针表顺序存储
+&#43;-------------------&#43;
+| 空闲空间（可变）   | 未使用的字节，由空闲列表管理
+&#43;-------------------&#43;
+计算最大元组数量
+对于默认8K的page，设最大元组数量为 n，行指针表占用空间为 4 * n 字节，元组数据占用空间为 tuple_size * n 字节。
+因此可得到不等式： 24&#43;4n&#43;tuplesize×n≤8192
+整理该不等式可得：n≤ (8192−24)/(4&#43;tuplesize)
+想要n越大，则tuplesize 越小，tuplesize 包括tuple头部信息23字节，n最大值得302。这是纯数学的计算，接下来看看代码中的实际规定。" />
+  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="http://localhost:1313/main.min.css" />
+
+  
+  <link rel="preload" as="image" href="http://localhost:1313/theme.png" />
+
+  
+
+  <link rel="preload" as="image" href="http://localhost:1313/github.svg" />
+
+  <script
+    defer
+    src="http://localhost:1313/highlight.min.js"
+    onload="hljs.initHighlightingOnLoad();"
+  ></script>
+
+  
+  <link
+    rel="icon"
+    href="http://localhost:1313/favicon.ico"
+  />
+  <link
+    rel="apple-touch-icon"
+    href="http://localhost:1313/apple-touch-icon.png"
+  />
+
+  <meta name="generator" content="Hugo 0.145.0">
+</head>
+<body
+    class="bg-(--bg) text-black antialiased duration-200 ease-out [-webkit-tap-highlight-color:transparent] dark:text-white"
+  ><header
+  class="mx-auto flex h-[4.5rem] max-w-(--w) px-8 whitespace-nowrap lg:justify-center"
+>
+  <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
+    <a
+      class="-translate-y-[1px] text-2xl font-medium"
+      href="http://localhost:1313/"
+      >数据库的路上</a
+    >
+    <div
+      class="btn-dark text-[0px] ltr:ml-4 rtl:mr-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]"
+      role="button"
+      aria-label="Dark"
+    ></div>
+  </div>
+
+  <div
+    class="btn-menu relative z-50 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden ltr:-mr-8 rtl:-ml-8"
+    role="button"
+    aria-label="Menu"
+  ></div>
+
+  <script>
+    
+    const htmlClass = document.documentElement.classList;
+    setTimeout(() => {
+      htmlClass.remove('not-ready');
+    }, 10);
+
+    
+    const btnMenu = document.querySelector('.btn-menu');
+    btnMenu.addEventListener('click', () => {
+      htmlClass.toggle('open');
+    });
+
+    
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    const lightBg = '#faf8f1'.replace(/"/g, '');
+    const setDark = (isDark) => {
+      metaTheme.setAttribute('content', isDark ? '#000' : lightBg);
+      htmlClass[isDark ? 'add' : 'remove']('dark');
+      localStorage.setItem('dark', isDark);
+    };
+
+    
+    const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    if (htmlClass.contains('dark')) {
+      setDark(true);
+    } else {
+      const darkVal = localStorage.getItem('dark');
+      setDark(darkVal ? darkVal === 'true' : darkScheme.matches);
+    }
+
+    
+    darkScheme.addEventListener('change', (event) => {
+      setDark(event.matches);
+    });
+
+    
+    const btnDark = document.querySelector('.btn-dark');
+    btnDark.addEventListener('click', () => {
+      setDark(localStorage.getItem('dark') !== 'true');
+    });
+  </script>
+
+  <div
+    class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full flex-col justify-center bg-(--bg) pb-16 duration-200 select-none lg:static lg:h-auto lg:flex-row lg:bg-transparent! lg:pb-0 lg:transition-none"
+  ><nav
+      class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"
+    ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/about/"
+        >About</a
+      ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/contact/"
+        >Contact</a
+      ></nav><nav
+      class="mt-12 flex justify-center space-x-10 lg:mt-0 lg:items-center ltr:lg:ml-14 rtl:space-x-reverse rtl:lg:mr-14 dark:invert"
+    >
+      <a
+        class="h-7 w-7 text-[0px] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6"
+        style="--url: url(./github.svg)"
+        href="https://github.com/maozicb"
+        target="_blank"
+        rel="me"
+      >github</a>
+    </nav>
+  </div>
+</header>
+<main
+      class="prose prose-neutral dark:prose-invert relative mx-auto min-h-[calc(100vh-9rem)] max-w-(--w) px-8 pt-14 pb-16"
+    ><article>
+  <header class="mb-14">
+    <h1 class="my-0! pb-2.5">Postgresql数据库单个Page最多存储多少行数据</h1><div class="text-xs antialiased opacity-60"><time>May 16, 2025</time></div></header>
+
+  <section><p>源码src/include/storage/bufpage.h 定义了一个page的结构如下</p>
+<pre tabindex="0"><code> * +----------------+---------------------------------+
+ * | PageHeaderData | linp1 linp2 linp3 ...           |
+ * +-----------+----+---------------------------------+
+ * | ... linpN |									  |
+ * +-----------+--------------------------------------+
+ * |		   ^ pd_lower							  |
+ * |												  |
+ * |			 v pd_upper							  |
+ * +-------------+------------------------------------+
+ * |			 | tupleN ...                         |
+ * +-------------+------------------+-----------------+
+ * |	   ... tuple3 tuple2 tuple1 | &#34;special space&#34; |
+ * +--------------------------------+-----------------+
+</code></pre><h2 id="一页面整体结构">一、页面整体结构</h2>
+<ol>
+<li>页面头部（Page Header，24 字节）页面头部存储元数据，用于描述页面状态和管理数据</li>
+<li>行指针表（Line Pointer Array）紧接页面头部之后，存储页面中所有元组的位置信息，每个指针占 4 字节</li>
+<li>数据区域（Data Section）
+存储实际的元组数据，每个元组由 元组头部（Tuple Header 23 个字节） 和 数据内容 组成</li>
+<li>空闲空间（Free Space）
+位于数据区域末尾，用于新元组的插入或元组更新时的扩展。
+通过 空闲列表（Free List） 管理可用空间，记录未使用的字节范围。</li>
+</ol>
+<pre tabindex="0"><code>Page（8KB）结构：
++-------------------+
+| 页面头部（24字节） |
++-------------------+
+| 行指针表（N×4字节）| 每个指针记录元组的位置和状态
++-------------------+
+| 数据区域（可变）   | 元组数据（头部+内容），按行指针表顺序存储
++-------------------+
+| 空闲空间（可变）   | 未使用的字节，由空闲列表管理
++-------------------+
+</code></pre><h2 id="计算最大元组数量">计算最大元组数量</h2>
+<p>对于默认8K的page，设最大元组数量为 n，行指针表占用空间为 4 * n 字节，元组数据占用空间为 tuple_size * n 字节。
+因此可得到不等式： <code>24+4n+tuplesize×n≤8192</code>
+整理该不等式可得：<code>n≤ (8192−24)/(4+tuplesize)</code>
+想要n越大，则tuplesize 越小，tuplesize 包括tuple头部信息23字节，n最大值得302。这是纯数学的计算，接下来看看代码中的实际规定。</p>
+<h3 id="最大行数的宏定义maxheaptuplesperpage">最大行数的宏定义MaxHeapTuplesPerPage</h3>
+<pre tabindex="0"><code>#define MaxHeapTuplesPerPage	\
+	((int) ((BLCKSZ - SizeOfPageHeaderData) / \
+			(MAXALIGN(SizeofHeapTupleHeader) + sizeof(ItemIdData))))
+			
+/*
+ * MaxHeapTuplesPerPage is an upper bound on the number of tuples that can
+ * fit on one heap page.  (Note that indexes could have more, because they
+ * use a smaller tuple header.)  We arrive at the divisor because each tuple
+ * must be maxaligned, and it must have an associated line pointer.
+ *
+ * Note: with HOT, there could theoretically be more line pointers (not actual
+ * tuples) than this on a heap page.  However we constrain the number of line
+ * pointers to this anyway, to avoid excessive line-pointer bloat and not
+ * require increases in the size of work arrays.
+ */
+ 这段代码注释解释了 MaxHeapTuplesPerPage 宏的定义和作用：
+
+1. 这个宏定义了单个堆页面(heap page)可以容纳的元组(tuple)数量的上限值。索引页面可能有更高的上限，因为索引使用更小的元组头部。
+2. 计算这个值的依据是：
+   
+   - 每个元组必须进行MAXALIGN内存对齐
+   - 每个元组必须有一个关联的行指针(line pointer)
+3. 关于HOT(Heap Only Tuple)的特别说明：
+   
+   - 理论上使用HOT时，一个堆页面上可能有比这个限制更多的行指针(不是实际元组)
+   - 但为了避免行指针过度膨胀，以及不需要增加工作数组的大小，仍然将这个值作为行指针数量的限制
+这个限制确保了PostgreSQL能够有效地管理页面空间，同时保持系统性能。在实际使用中，由于元组大小和页面布局的复杂性，实际可存储的元组数量可能会少于这个上限值。
+ 
+</code></pre><h3 id="根据代码里提到的内存对齐重新计算一次">根据代码里提到的内存对齐，重新计算一次</h3>
+<ol>
+<li>
+<p><strong>基本参数值</strong>：</p>
+<ul>
+<li>默认块大小 <code>BLCKSZ</code> = 8192字节 (8KB)</li>
+<li>页面头部大小 <code>SizeOfPageHeaderData</code> = 24字节</li>
+<li>堆元组头部大小 <code>SizeofHeapTupleHeader</code> = 23字节</li>
+<li>行指针大小 <code>sizeof(ItemIdData)</code> = 4字节</li>
+</ul>
+</li>
+<li>
+<p><strong>计算公式</strong>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>MaxHeapTuplesPerPage <span style="color:#f92672">=</span> (BLCKSZ <span style="color:#f92672">-</span> SizeOfPageHeaderData) <span style="color:#f92672">/</span> 
+</span></span><span style="display:flex;"><span>                      (<span style="color:#a6e22e">MAXALIGN</span>(SizeofHeapTupleHeader) <span style="color:#f92672">+</span> <span style="color:#66d9ef">sizeof</span>(ItemIdData))
+</span></span></code></pre></div></li>
+<li>
+<p><strong>具体计算步骤</strong>：
+a) 计算页面可用空间：
+<code>8192 - 24 = 8168</code> 字节</p>
+<p>b) 计算单个元组占用空间：</p>
+<ul>
+<li>堆元组头部对齐后大小：<code>MAXALIGN(23) = 24</code> 字节 (在64位系统上按8字节对齐)</li>
+<li>加上行指针：<code>24 + 4 = 28</code> 字节</li>
+</ul>
+<p>c) 计算最大元组数量：
+<code>8168 / 28 ≈ 291.714</code>，向下取整得291</p>
+</li>
+</ol>
+<p>因此，在默认8KB块大小下，不考虑存储数据占用的情况下，每个堆页面理论上最多可以存储291个元组。</p>
+<h2 id="实际测试">实际测试</h2>
+<p>首先安装pageinspect 插件，能够方便的查看底层page的存储情况。</p>
+<pre tabindex="0"><code>-- 安装pageinspect扩展
+CREATE EXTENSION pageinspect;
+
+-- 查看特定页面的头部信息
+SELECT * FROM page_header(get_raw_page(&#39;table_name&#39;, page_number));
+
+-- 查看页面中的元组信息
+SELECT * FROM heap_page_items(get_raw_page(&#39;table_name&#39;, page_number)); 
+</code></pre><p>测试表结构只有一列char(1) 数据类型，插入两行数据后查看page使用情况</p>
+<pre tabindex="0"><code>test=# \d test1
+                  Table &#34;public.test1&#34;
+ Column |     Type     | Collation | Nullable | Default 
+--------+--------------+-----------+----------+---------
+ var    | character(1) |           |          | 
+
+test=# insert into test1 values(&#39;A&#39;);
+INSERT 0 1
+test=# insert into test1 values(&#39;A&#39;);
+INSERT 0 1
+
+test=# SELECT * FROM page_header(get_raw_page(&#39;test1&#39;, 0));
+    lsn    | checksum | flags | lower | upper | special | pagesize | version | prune_xid 
+-----------+----------+-------+-------+-------+---------+----------+---------+-----------
+ 0/2AB6128 |        0 |     0 |    32 |  8128 |    8192 |     8192 |       4 |         0
+(1 row)
+
+test=# SELECT * FROM heap_page_items (get_raw_page(&#39;test1&#39;, 0));
+ lp | lp_off | lp_flags | lp_len | t_xmin | t_xmax | t_field3 | t_ctid | t_infomask2 | t_infomask | t_hoff | t_bits | t_oid | t_data 
+----+--------+----------+--------+--------+--------+----------+--------+-------------+------------+--------+--------+-------+--------
+  1 |   8160 |        1 |     26 |    983 |      0 |        0 | (0,1)  |           1 |       2050 |     24 |        |       | \x0541
+  2 |   8128 |        1 |     26 |    984 |      0 |        0 | (0,2)  |           1 |       2050 |     24 |        |       | \x0541
+</code></pre><h3 id="lp_len-显示的值解析">lp_len 显示的值解析</h3>
+<p>每一行数据的长度是<code>lp_len</code>值为26字节的原因如下：</p>
+<ol>
+<li>
+<p>元组头部结构<code>HeapTupleHeaderData</code>基础大小为23字节，但实际存储时会进行内存对齐：</p>
+<ul>
+<li>在64位系统上会按8字节对齐，所以实际占用24字节</li>
+</ul>
+</li>
+<li>
+<p>对于char(1)字段的存储：</p>
+<ul>
+<li>1字节用于存储实际字符数据</li>
+<li>1字节用于null bitmap（即使只有一个字段也需要）</li>
+</ul>
+</li>
+<li>
+<p>计算明细：</p>
+<ul>
+<li>对齐后的头部：24字节</li>
+<li>null bitmap：1字节</li>
+<li>char(1)数据：1字节</li>
+<li>总计：24 + 1 + 1 = 26字节</li>
+</ul>
+</li>
+<li>
+<p>额外说明：</p>
+<ul>
+<li><code>t_data</code>字段显示为<code>\x0541</code>，其中：
+<ul>
+<li><code>05</code>是长度前缀</li>
+<li><code>41</code>是字符&rsquo;A&rsquo;的ASCII码</li>
+</ul>
+</li>
+<li>这种存储格式确保了数据对齐和快速访问</li>
+</ul>
+</li>
+</ol>
+<h3 id="每行数据实际占用空间">每行数据实际占用空间</h3>
+<p>根据upper计算，初始值是8192-当前值8128=64，一共两行数据，每行实际占用是32个字节，为什么不是lp_len 显示的26字节呢，因为实际存储时会计算内存对齐（在64位系统上会按8字节对齐，长度是8的倍数),所以每行数据实际占用是32字节</p>
+<h3 id="真实测试结果每个page能存多少行数据">真实测试结果每个page能存多少行数据</h3>
+<p>根据当前的表结构和测试数据，计算结果如下</p>
+<p><code>(8192−24)/(32+4) = 226 行</code></p>
+<p>当插入到226行数据时，upper-lower=32 ，小于行数据32 字节 + 行指针4字节，page已经满了</p>
+<pre tabindex="0"><code>test=# test=# SELECT * FROM page_header(get_raw_page(&#39;test1&#39;, 0));
+    lsn    | checksum | flags | lower | upper | special | pagesize | version | prune_xid 
+-----------+----------+-------+-------+-------+---------+----------+---------+-----------
+ 0/2B13A10 |        0 |     0 |   928 |   960 |    8192 |     8192 |       4 |         0
+(1 row)
+
+test=# select count(*) from test1;
+ count 
+-------
+   226
+(1 row)
+</code></pre><p>再插入一行数据后，upper和lower已经不变化了，已经到了新的一个page</p>
+<pre tabindex="0"><code>test=# test=# select count(*) from test1;
+ count 
+-------
+   227
+(1 row)
+
+test=# SELECT * FROM page_header(get_raw_page(&#39;test1&#39;, 0));
+    lsn    | checksum | flags | lower | upper | special | pagesize | version | prune_xid 
+-----------+----------+-------+-------+-------+---------+----------+---------+-----------
+ 0/2B13A10 |        0 |     0 |   928 |   960 |    8192 |     8192 |       4 |         0
+(1 row)
+
+test=# SELECT * FROM page_header(get_raw_page(&#39;test1&#39;, 1));
+    lsn    | checksum | flags | lower | upper | special | pagesize | version | prune_xid 
+-----------+----------+-------+-------+-------+---------+----------+---------+-----------
+ 0/2B15780 |        0 |     0 |    28 |  8160 |    8192 |     8192 |       4 |         0
+(1 row)
+</code></pre><h2 id="总结">总结</h2>
+<p>在PostgreSQL数据库中，单个Page能够存储的数据行数与Page size（页面大小）紧密相关。当Page size设定为8K时，从代码层面的设计理论角度来讲，单个Page最多能够存储291行数据。然而，通过实际测试发现，即便是采用最简单的表结构，且每行数据仅占用1个字节的情况下，单个8K大小的Page实际上也只能存储226行数据 。</p>
+</section>
+
+  <nav
+    class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg leading-[1.2]! *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"
+  ><a class="ltr:pr-3 rtl:pl-3" href="http://localhost:1313/posts/db/postgresql/postgresql-%E6%BA%90%E7%A0%81%E7%A0%94%E7%A9%B6%E4%B9%8B%E5%9F%BA%E7%A1%80%E5%A4%87%E4%BB%BD%E5%B7%A5%E5%85%B7pg_basebackup/"
+      ><span class="ltr:mr-1.5 rtl:ml-1.5">←</span><span>Postgresql 源码研究之基础备份工具pg_basebackup</span></a
+    ><a
+      class="justify-end pl-3 ltr:ml-auto rtl:mr-auto"
+      href="http://localhost:1313/posts/db/postgresql/%E4%BB%8E%E6%95%B0%E6%8D%AE%E5%BA%93%E6%BA%90%E7%A0%81%E8%A7%92%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BA%8B%E5%8A%A1%E7%9A%84acid%E5%9B%9B%E5%A4%A7%E7%89%B9%E6%80%A7/"
+      ><span>从数据库源码角度解析事务的ACID四大特性</span><span class="ltr:ml-1.5 rtl:mr-1.5">→</span></a
+    ></nav></article></main><footer
+  class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
+>
+  <div class="mr-auto">&copy;2025
+    <a class="link" href="http://localhost:1313/">数据库的路上</a></div>
+</footer>
+</body>
+</html>

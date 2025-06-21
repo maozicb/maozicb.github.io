@@ -1,0 +1,390 @@
+<!doctype html>
+
+
+
+
+
+
+
+<html
+  class="not-ready lg:text-base"
+  style="--bg:#faf8f1"
+  lang="en-us"
+  dir="ltr"
+><head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, shrink-to-fit=no"
+  />
+
+  
+  <title>从数据库源码角度解析事务的ACID四大特性 - 数据库的路上</title>
+
+  
+  <meta name="theme-color" />
+
+  <meta name="description" content="事务的ACID特性（原子性、一致性、隔离性、持久性）是关系型数据库的核心基石。本文将以PostgreSQL为切入点，通过源码分析和调试示例，深入解读ACID特性在数据库底层的实现机制。我们将以PostgreSQL数据库为例，结合具体的SQL语句和调试过程，带您一窥事务背后的神秘世界。
+
+一、原子性（Atomicity）：要么全成功，要么全失败
+1.1 原理概述
+原子性要求事务中的所有操作要么全部成功提交，要么全部回滚。PostgreSQL通过预写式日志（WAL, Write-Ahead Logging）和回滚段（Undo Log）实现这一特性。事务提交前，所有修改必须先写入WAL日志，确保在崩溃后能通过日志恢复。
+1.2 源码实现
+关键文件：src/backend/access/transam/xact.c
+核心函数：CommitTransaction() 和 AbortTransaction()
+示例SQL：
+CREATE TABLE accounts (
+    id SERIAL PRIMARY KEY,
+    balance NUMERIC(10, 2) NOT NULL
+);
+
+-- 初始化两个账户，初始余额均为 500
+INSERT INTO accounts (balance) VALUES (500.00);
+INSERT INTO accounts (balance) VALUES (500.00);
+
+-- 开启事务
+BEGIN;
+
+-- 更新账户余额（模拟转账）
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+UPDATE accounts SET balance = balance &#43; 100 WHERE id = 2;
+
+-- 提交事务
+COMMIT;
+
+--回滚事务
+ROLLBACK;
+调试过程：
+要么全成功
+
+在xact.c中设置断点：
+// 源码位置：src/backend/access/transam/xact.c
+static void CommitTransaction(void)
+{
+    // 提交事务前，将所有修改写入WAL日志
+    RecordTransactionCommit();
+}
+
+
+代码运行到提交事务阶段
+" />
+  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="http://localhost:1313/main.min.css" />
+
+  
+  <link rel="preload" as="image" href="http://localhost:1313/theme.png" />
+
+  
+
+  <link rel="preload" as="image" href="http://localhost:1313/github.svg" />
+
+  <script
+    defer
+    src="http://localhost:1313/highlight.min.js"
+    onload="hljs.initHighlightingOnLoad();"
+  ></script>
+
+  
+  <link
+    rel="icon"
+    href="http://localhost:1313/favicon.ico"
+  />
+  <link
+    rel="apple-touch-icon"
+    href="http://localhost:1313/apple-touch-icon.png"
+  />
+
+  <meta name="generator" content="Hugo 0.145.0">
+</head>
+<body
+    class="bg-(--bg) text-black antialiased duration-200 ease-out [-webkit-tap-highlight-color:transparent] dark:text-white"
+  ><header
+  class="mx-auto flex h-[4.5rem] max-w-(--w) px-8 whitespace-nowrap lg:justify-center"
+>
+  <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
+    <a
+      class="-translate-y-[1px] text-2xl font-medium"
+      href="http://localhost:1313/"
+      >数据库的路上</a
+    >
+    <div
+      class="btn-dark text-[0px] ltr:ml-4 rtl:mr-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]"
+      role="button"
+      aria-label="Dark"
+    ></div>
+  </div>
+
+  <div
+    class="btn-menu relative z-50 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden ltr:-mr-8 rtl:-ml-8"
+    role="button"
+    aria-label="Menu"
+  ></div>
+
+  <script>
+    
+    const htmlClass = document.documentElement.classList;
+    setTimeout(() => {
+      htmlClass.remove('not-ready');
+    }, 10);
+
+    
+    const btnMenu = document.querySelector('.btn-menu');
+    btnMenu.addEventListener('click', () => {
+      htmlClass.toggle('open');
+    });
+
+    
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    const lightBg = '#faf8f1'.replace(/"/g, '');
+    const setDark = (isDark) => {
+      metaTheme.setAttribute('content', isDark ? '#000' : lightBg);
+      htmlClass[isDark ? 'add' : 'remove']('dark');
+      localStorage.setItem('dark', isDark);
+    };
+
+    
+    const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    if (htmlClass.contains('dark')) {
+      setDark(true);
+    } else {
+      const darkVal = localStorage.getItem('dark');
+      setDark(darkVal ? darkVal === 'true' : darkScheme.matches);
+    }
+
+    
+    darkScheme.addEventListener('change', (event) => {
+      setDark(event.matches);
+    });
+
+    
+    const btnDark = document.querySelector('.btn-dark');
+    btnDark.addEventListener('click', () => {
+      setDark(localStorage.getItem('dark') !== 'true');
+    });
+  </script>
+
+  <div
+    class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full flex-col justify-center bg-(--bg) pb-16 duration-200 select-none lg:static lg:h-auto lg:flex-row lg:bg-transparent! lg:pb-0 lg:transition-none"
+  ><nav
+      class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"
+    ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/about/"
+        >About</a
+      ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/contact/"
+        >Contact</a
+      ></nav><nav
+      class="mt-12 flex justify-center space-x-10 lg:mt-0 lg:items-center ltr:lg:ml-14 rtl:space-x-reverse rtl:lg:mr-14 dark:invert"
+    >
+      <a
+        class="h-7 w-7 text-[0px] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6"
+        style="--url: url(./github.svg)"
+        href="https://github.com/maozicb"
+        target="_blank"
+        rel="me"
+      >github</a>
+    </nav>
+  </div>
+</header>
+<main
+      class="prose prose-neutral dark:prose-invert relative mx-auto min-h-[calc(100vh-9rem)] max-w-(--w) px-8 pt-14 pb-16"
+    ><article>
+  <header class="mb-14">
+    <h1 class="my-0! pb-2.5">从数据库源码角度解析事务的ACID四大特性</h1><div class="text-xs antialiased opacity-60"><time>May 16, 2025</time></div></header>
+
+  <section><p>事务的ACID特性（原子性、一致性、隔离性、持久性）是关系型数据库的核心基石。本文将以<strong>PostgreSQL</strong>为切入点，通过源码分析和调试示例，深入解读ACID特性在数据库底层的实现机制。我们将以PostgreSQL数据库为例，结合具体的SQL语句和调试过程，带您一窥事务背后的神秘世界。</p>
+<hr>
+<h2 id="一原子性atomicity要么全成功要么全失败">一、原子性（Atomicity）：要么全成功，要么全失败</h2>
+<h3 id="11-原理概述">1.1 原理概述</h3>
+<p>原子性要求事务中的所有操作要么全部成功提交，要么全部回滚。PostgreSQL通过预写式日志（WAL, Write-Ahead Logging）和回滚段（Undo Log）实现这一特性。事务提交前，所有修改必须先写入WAL日志，确保在崩溃后能通过日志恢复。</p>
+<h3 id="12-源码实现">1.2 源码实现</h3>
+<p>关键文件：<code>src/backend/access/transam/xact.c</code><br>
+核心函数：<code>CommitTransaction()</code> 和 <code>AbortTransaction()</code></p>
+<h4 id="示例sql">示例SQL：</h4>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#66d9ef">CREATE</span> <span style="color:#66d9ef">TABLE</span> accounts (
+</span></span><span style="display:flex;"><span>    id SERIAL <span style="color:#66d9ef">PRIMARY</span> <span style="color:#66d9ef">KEY</span>,
+</span></span><span style="display:flex;"><span>    balance NUMERIC(<span style="color:#ae81ff">10</span>, <span style="color:#ae81ff">2</span>) <span style="color:#66d9ef">NOT</span> <span style="color:#66d9ef">NULL</span>
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">-- 初始化两个账户，初始余额均为 500
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">INSERT</span> <span style="color:#66d9ef">INTO</span> accounts (balance) <span style="color:#66d9ef">VALUES</span> (<span style="color:#ae81ff">500</span>.<span style="color:#ae81ff">00</span>);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">INSERT</span> <span style="color:#66d9ef">INTO</span> accounts (balance) <span style="color:#66d9ef">VALUES</span> (<span style="color:#ae81ff">500</span>.<span style="color:#ae81ff">00</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">-- 开启事务
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">BEGIN</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">-- 更新账户余额（模拟转账）
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">UPDATE</span> accounts <span style="color:#66d9ef">SET</span> balance <span style="color:#f92672">=</span> balance <span style="color:#f92672">-</span> <span style="color:#ae81ff">100</span> <span style="color:#66d9ef">WHERE</span> id <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">UPDATE</span> accounts <span style="color:#66d9ef">SET</span> balance <span style="color:#f92672">=</span> balance <span style="color:#f92672">+</span> <span style="color:#ae81ff">100</span> <span style="color:#66d9ef">WHERE</span> id <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">-- 提交事务
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">COMMIT</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">--回滚事务
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">ROLLBACK</span>;
+</span></span></code></pre></div><h4 id="调试过程">调试过程：</h4>
+<h5 id="要么全成功">要么全成功</h5>
+<ol>
+<li>在<code>xact.c</code>中设置断点：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">// 源码位置：src/backend/access/transam/xact.c
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">CommitTransaction</span>(<span style="color:#66d9ef">void</span>)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// 提交事务前，将所有修改写入WAL日志
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#a6e22e">RecordTransactionCommit</span>();
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div></li>
+</ol>
+<p>代码运行到提交事务阶段
+<img src="https://s2.loli.net/2025/06/13/PCfybzAOqBUJ1d9.jpg" alt=""></p>
+<p>未提交前数据情况
+<img src="https://s2.loli.net/2025/06/13/IlMyWprZYk3G7Fw.jpg" alt=""></p>
+<p>提交后数据情况
+<img src="https://s2.loli.net/2025/06/13/ak3zNijTYwOMq4x.jpg" alt="">
+ProcArrayEndTransaction()函数具体功能是通知系统当前某个事务已经结束</p>
+<p>此时事务已经提交完成了。查看数据发现两个sql都成功了。
+<img src="https://s2.loli.net/2025/06/13/EbLxm2BHIWUXJel.jpg" alt=""></p>
+<h5 id="要么全失败">要么全失败</h5>
+<pre tabindex="0"><code> static void AbortTransaction(void)
+ {
+     // 回滚事务，恢复数据到事务开始前的状态
+     RecordTransactionAbort();
+ }
+ 
+</code></pre><p>恢复测试数据并模拟全失败的sql</p>
+<pre tabindex="0"><code>BEGIN;
+
+-- 更新账户余额（模拟转账）
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;
+
+ROLLBACK;
+</code></pre><p>执行sql
+<img src="https://s2.loli.net/2025/06/13/XInVpLo2qtEUeSZ.jpg" alt=""></p>
+<p>开始rollback
+<img src="https://s2.loli.net/2025/06/13/gqAvUuha3HJm9n6.jpg" alt=""></p>
+<p>查询rollback 之前的数据，没有发生改变
+<img src="https://s2.loli.net/2025/06/13/zFDa7vMKXGujSPV.jpg" alt=""></p>
+<p>rollback 事务完成操作
+<img src="https://s2.loli.net/2025/06/13/oE1MVCWhDbTnU4k.jpg" alt="">
+<img src="https://s2.loli.net/2025/06/13/jtMZ9QXvl7APYx6.jpg" alt=""></p>
+<hr>
+<h2 id="二一致性consistency数据始终合法">二、一致性（Consistency）：数据始终合法</h2>
+<h3 id="21-原理概述">2.1 原理概述</h3>
+<p>一致性要求事务执行前后，数据库必须从一个合法状态转换到另一个合法状态。
+一致性体现在多个方面，是通过数据库的约束检查、事务的原子性、隔离性和持久性共同保证的，确保数据始终满足业务规则和完整性要求。</p>
+<p>PostgreSQL通过<strong>约束检查</strong>（如主键、外键、唯一性约束）和<strong>触发器</strong>确保一致性。</p>
+<p>这里我们演示通唯一性约束实现一致性。</p>
+<h3 id="22-源码实现">2.2 源码实现</h3>
+<p>PostgreSQL 中的 UNIQUE 约束是通过唯一性索引（UNIQUE index）实现的。
+在执行 INSERT 或 UPDATE 操作时，会调用 heap_insert() 或 heap_update()。
+如果字段上有唯一性约束，就会存在一个对应的唯一性索引。
+插入元组时，系统会调用 index_insert() 向索引插入记录。
+在 nbtinsert.c 中的 _bt_doinsert() 函数会进一步调用 _bt_check_unique() 来判断是否违反唯一性约束。</p>
+<h4 id="示例sql-1">示例SQL：</h4>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#75715e">-- 创建带有唯一性约束的表
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">CREATE</span> <span style="color:#66d9ef">TABLE</span> users (
+</span></span><span style="display:flex;"><span>    id SERIAL <span style="color:#66d9ef">PRIMARY</span> <span style="color:#66d9ef">KEY</span>,
+</span></span><span style="display:flex;"><span>    email VARCHAR(<span style="color:#ae81ff">255</span>) <span style="color:#66d9ef">UNIQUE</span>
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">-- 开启事务
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">BEGIN</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">-- 插入数据（第一次成功，第二次失败）
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">INSERT</span> <span style="color:#66d9ef">INTO</span> users (email) <span style="color:#66d9ef">VALUES</span> (<span style="color:#e6db74">&#39;user@example.com&#39;</span>);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">INSERT</span> <span style="color:#66d9ef">INTO</span> users (email) <span style="color:#66d9ef">VALUES</span> (<span style="color:#e6db74">&#39;user@example.com&#39;</span>);  <span style="color:#75715e">-- 违反唯一性约束
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">-- 提交事务
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">COMMIT</span>;
+</span></span></code></pre></div><h4 id="调试过程-1">调试过程：</h4>
+<ol>
+<li>在<code>_bt_doinsert</code>中设置断点：
+<img src="https://s2.loli.net/2025/06/13/NHuY1jhsWPImoLU.jpg" alt=""></li>
+</ol>
+<p>检测到冲突，最终会回滚掉该事务。
+<img src="https://s2.loli.net/2025/06/13/bjLkBt85JaCcPF2.jpg" alt="">
+<img src="https://s2.loli.net/2025/06/13/OSCg85Ide93kzNy.jpg" alt=""></p>
+<h2 id="三隔离性isolation并发事务互不干扰">三、隔离性（Isolation）：并发事务互不干扰</h2>
+<h3 id="31-原理概述">3.1 原理概述</h3>
+<p>隔离性要求事务之间相互隔离，防止并发操作导致的数据不一致。PostgreSQL通过<strong>多版本并发控制（MVCC）<strong>和</strong>锁机制</strong>实现不同隔离级别（如<code>READ COMMITTED</code>、<code>REPEATABLE READ</code>、<code>SERIALIZABLE</code>）。</p>
+<h3 id="32-源码实现">3.2 源码实现</h3>
+<p>关键文件：<code>src/backend/access/heap/heapam.c</code><br>
+核心函数：<code>heap_lock_tuple()</code> 和 <code>MultiXactId</code></p>
+<h4 id="示例sql-2">示例SQL：</h4>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#75715e">-- 事务A：读取数据
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">BEGIN</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">SELECT</span> <span style="color:#f92672">*</span> <span style="color:#66d9ef">FROM</span> accounts <span style="color:#66d9ef">WHERE</span> id <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#75715e">-- 事务B：更新数据
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">BEGIN</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">UPDATE</span> accounts <span style="color:#66d9ef">SET</span> balance <span style="color:#f92672">=</span> <span style="color:#ae81ff">500</span> <span style="color:#66d9ef">WHERE</span> id <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">COMMIT</span>;
+</span></span><span style="display:flex;"><span><span style="color:#75715e">-- 事务A：再次读取数据（隔离级别分别为READ COMMITTED）
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">SELECT</span> <span style="color:#f92672">*</span> <span style="color:#66d9ef">FROM</span> accounts <span style="color:#66d9ef">WHERE</span> id <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">COMMIT</span>;
+</span></span></code></pre></div><h4 id="调试过程-2">调试过程：</h4>
+<h5 id="read-committed-隔离级别">READ COMMITTED 隔离级别</h5>
+<ol>
+<li>事务A：读取数据
+<img src="https://s2.loli.net/2025/06/13/6CSJO2WEQbki8qy.jpg" alt=""></li>
+<li>事务B：更新数据
+<img src="https://s2.loli.net/2025/06/13/mwlNVxLvT2GtPBD.jpg" alt="">
+<img src="https://s2.loli.net/2025/06/13/i9bpI7W8DLzU3X4.jpg" alt=""></li>
+</ol>
+<p>HeapTupleSatisfiesUpdate（）函数是具体实现MVCC的重要逻辑，返回TM_OK，表示可以正常update操作，无需获取锁。</p>
+<ol start="3">
+<li>
+<p>事务B 提交完数据。
+<img src="https://s2.loli.net/2025/06/13/nKgJbd9OFUt31iG.jpg" alt=""></p>
+</li>
+<li>
+<p>事务A 查看最新数据
+<img src="https://s2.loli.net/2025/06/13/hlEsS3fy1ZpM9Oq.jpg" alt=""></p>
+</li>
+</ol>
+<h2 id="四持久性durability提交后永不丢失">四、持久性（Durability）：提交后永不丢失</h2>
+<h3 id="41-原理概述">4.1 原理概述</h3>
+<p>持久性要求事务提交后，修改永久保存。PostgreSQL通过<strong>WAL日志刷盘</strong>和<strong>fsync</strong>机制确保数据不会因系统崩溃而丢失。</p>
+<h3 id="42-源码实现">4.2 源码实现</h3>
+<p>关键文件：<code>src/backend/access/transam/xlog.c</code><br>
+核心函数：<code>XLogFlush()</code> 和 <code>fdatasync</code></p>
+<h4 id="示例sql-3">示例SQL：</h4>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#75715e">-- 更新数据并提交
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">BEGIN</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">UPDATE</span> accounts <span style="color:#66d9ef">SET</span> balance <span style="color:#f92672">=</span> <span style="color:#ae81ff">1000</span> <span style="color:#66d9ef">WHERE</span> id <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">COMMIT</span>;
+</span></span></code></pre></div><h4 id="调试过程-3">调试过程：</h4>
+<ol>
+<li>执行sql</li>
+</ol>
+<p>2.提交事务的过程中，会将wal日志写入系统，保证事务持久性。
+<img src="https://s2.loli.net/2025/06/13/DfdF7cGozkMYNiq.jpg" alt=""></p>
+<hr>
+<h2 id="五总结">五、总结</h2>
+<p>通过PostgreSQL源码的深入分析，我们发现ACID特性的实现并非“魔法”，而是通过精心设计的机制（如WAL日志、MVCC、锁管理）和严格的代码逻辑保障的。以下是关键点总结：</p>
+<ol>
+<li><strong>原子性</strong>：依赖WAL日志和回滚机制，确保事务的“全有或全无”。</li>
+<li><strong>一致性</strong>：通过约束检查和触发器维护数据合法性。</li>
+<li><strong>隔离性</strong>：利用MVCC和锁机制实现不同隔离级别的并发控制。</li>
+<li><strong>持久性</strong>：通过WAL日志刷盘和<code>fsync</code>确保数据永久保存。</li>
+</ol>
+<p>理解这些底层原理不仅能帮助开发者更好地使用数据库，还能在调优和故障排查时提供有力支持。下次当你执行一个简单的<code>COMMIT</code>时，不妨想象它背后复杂的代码逻辑和严谨的设计哲学。</p>
+</section>
+
+  <nav
+    class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg leading-[1.2]! *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"
+  ><a class="ltr:pr-3 rtl:pl-3" href="http://localhost:1313/posts/db/postgresql/postgresql-%E6%BA%90%E7%A0%81%E7%A0%94%E7%A9%B6%E4%B9%8B%E5%9F%BA%E7%A1%80%E5%A4%87%E4%BB%BD%E5%B7%A5%E5%85%B7pg_basebackup/"
+      ><span class="ltr:mr-1.5 rtl:ml-1.5">←</span><span>Postgresql 源码研究之基础备份工具pg_basebackup</span></a
+    ><a
+      class="justify-end pl-3 ltr:ml-auto rtl:mr-auto"
+      href="http://localhost:1313/posts/db/postgresql/%E4%BB%8E%E6%BA%90%E7%A0%81%E7%9C%8B-postgresql-%E5%85%B1%E4%BA%AB%E5%86%85%E5%AD%98%E4%BD%BF%E7%94%A8/"
+      ><span>从源码看 postgresql 共享内存使用</span><span class="ltr:ml-1.5 rtl:mr-1.5">→</span></a
+    ></nav></article></main><footer
+  class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
+>
+  <div class="mr-auto">&copy;2025
+    <a class="link" href="http://localhost:1313/">数据库的路上</a></div>
+</footer>
+</body>
+</html>

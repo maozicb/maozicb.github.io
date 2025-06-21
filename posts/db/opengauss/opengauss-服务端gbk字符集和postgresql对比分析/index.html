@@ -1,0 +1,305 @@
+<!doctype html>
+
+
+
+
+
+
+
+<html
+  class="not-ready lg:text-base"
+  style="--bg:#faf8f1"
+  lang="en-us"
+  dir="ltr"
+><head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, shrink-to-fit=no"
+  />
+
+  
+  <title>OpenGauss 服务端GBK字符集和Postgresql对比分析 - 数据库的路上</title>
+
+  
+  <meta name="theme-color" />
+
+  <meta name="description" content="Postgresql server端不支持GBK字符集
+psql创建数据库
+create database gbk with encoding &#39;GBK&#39;;
+代码调用
+src/backend/commands/dbcommands.c
+
+
+通过pg_valid_server_encoding验证编码是否有效
+
+pg_valid_server_encoding 函数结构图
+
+```mermaid
+graph TD
+    A[pg_valid_server_encoding] --&gt; B[pg_char_to_encoding]
+    B --&gt; C[clean_encoding_name]
+    C --&gt; D[二分查找 pg_encname_tbl]
+    A --&gt; E[PG_VALID_BE_ENCODING 宏]
+
+
+pg_encname_tbl 是一个数组，里面罗列了所有Postgresql支持的字符集
+
+
+pg_char_to_encoding 通过验证，gbk在整体支持列表里，后面需验证是否支持 server 端字符集
+
+
+
+需要使用PG_VALID_BE_ENCODING(enc) 判断 server 端是否支持 gbk
+根据src/include/mb/pg_wchar.h 代码的定义，PG_GBK 只属于 client 支持的范围，server 端不支持。
+
+
+	/* followings are for client encoding only */
+	PG_SJIS,					/* Shift JIS (Windows-932) */
+	PG_BIG5,					/* Big5 (Windows-950) */
+	PG_GBK,						/* GBK (Windows-936) */
+	PG_UHC,						/* UHC (Windows-949) */
+	PG_GB18030,					/* GB18030 */
+	PG_JOHAB,					/* EUC for Korean JOHAB */
+	PG_SHIFT_JIS_2004,			/* Shift-JIS-2004 */
+	_PG_LAST_ENCODING_			/* mark only */
+" />
+  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="http://localhost:1313/main.min.css" />
+
+  
+  <link rel="preload" as="image" href="http://localhost:1313/theme.png" />
+
+  
+
+  <link rel="preload" as="image" href="http://localhost:1313/github.svg" />
+
+  <script
+    defer
+    src="http://localhost:1313/highlight.min.js"
+    onload="hljs.initHighlightingOnLoad();"
+  ></script>
+
+  
+  <link
+    rel="icon"
+    href="http://localhost:1313/favicon.ico"
+  />
+  <link
+    rel="apple-touch-icon"
+    href="http://localhost:1313/apple-touch-icon.png"
+  />
+
+  <meta name="generator" content="Hugo 0.145.0">
+</head>
+<body
+    class="bg-(--bg) text-black antialiased duration-200 ease-out [-webkit-tap-highlight-color:transparent] dark:text-white"
+  ><header
+  class="mx-auto flex h-[4.5rem] max-w-(--w) px-8 whitespace-nowrap lg:justify-center"
+>
+  <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
+    <a
+      class="-translate-y-[1px] text-2xl font-medium"
+      href="http://localhost:1313/"
+      >数据库的路上</a
+    >
+    <div
+      class="btn-dark text-[0px] ltr:ml-4 rtl:mr-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]"
+      role="button"
+      aria-label="Dark"
+    ></div>
+  </div>
+
+  <div
+    class="btn-menu relative z-50 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden ltr:-mr-8 rtl:-ml-8"
+    role="button"
+    aria-label="Menu"
+  ></div>
+
+  <script>
+    
+    const htmlClass = document.documentElement.classList;
+    setTimeout(() => {
+      htmlClass.remove('not-ready');
+    }, 10);
+
+    
+    const btnMenu = document.querySelector('.btn-menu');
+    btnMenu.addEventListener('click', () => {
+      htmlClass.toggle('open');
+    });
+
+    
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    const lightBg = '#faf8f1'.replace(/"/g, '');
+    const setDark = (isDark) => {
+      metaTheme.setAttribute('content', isDark ? '#000' : lightBg);
+      htmlClass[isDark ? 'add' : 'remove']('dark');
+      localStorage.setItem('dark', isDark);
+    };
+
+    
+    const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    if (htmlClass.contains('dark')) {
+      setDark(true);
+    } else {
+      const darkVal = localStorage.getItem('dark');
+      setDark(darkVal ? darkVal === 'true' : darkScheme.matches);
+    }
+
+    
+    darkScheme.addEventListener('change', (event) => {
+      setDark(event.matches);
+    });
+
+    
+    const btnDark = document.querySelector('.btn-dark');
+    btnDark.addEventListener('click', () => {
+      setDark(localStorage.getItem('dark') !== 'true');
+    });
+  </script>
+
+  <div
+    class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full flex-col justify-center bg-(--bg) pb-16 duration-200 select-none lg:static lg:h-auto lg:flex-row lg:bg-transparent! lg:pb-0 lg:transition-none"
+  ><nav
+      class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"
+    ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/about/"
+        >About</a
+      ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/contact/"
+        >Contact</a
+      ></nav><nav
+      class="mt-12 flex justify-center space-x-10 lg:mt-0 lg:items-center ltr:lg:ml-14 rtl:space-x-reverse rtl:lg:mr-14 dark:invert"
+    >
+      <a
+        class="h-7 w-7 text-[0px] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6"
+        style="--url: url(./github.svg)"
+        href="https://github.com/maozicb"
+        target="_blank"
+        rel="me"
+      >github</a>
+    </nav>
+  </div>
+</header>
+<main
+      class="prose prose-neutral dark:prose-invert relative mx-auto min-h-[calc(100vh-9rem)] max-w-(--w) px-8 pt-14 pb-16"
+    ><article>
+  <header class="mb-14">
+    <h1 class="my-0! pb-2.5">OpenGauss 服务端GBK字符集和Postgresql对比分析</h1><div class="text-xs antialiased opacity-60"><time>Jun 16, 2025</time></div></header>
+
+  <section><h2 id="postgresql-server端不支持gbk字符集">Postgresql server端不支持GBK字符集</h2>
+<p>psql创建数据库</p>
+<pre tabindex="0"><code>create database gbk with encoding &#39;GBK&#39;;
+</code></pre><p>代码调用</p>
+<pre tabindex="0"><code>src/backend/commands/dbcommands.c
+</code></pre><p><img src="https://s2.loli.net/2025/06/20/nyxuUvHf3dDNkiq.jpg" alt=""></p>
+<ol>
+<li>通过pg_valid_server_encoding验证编码是否有效</li>
+</ol>
+<pre tabindex="0"><code>pg_valid_server_encoding 函数结构图
+
+```mermaid
+graph TD
+    A[pg_valid_server_encoding] --&gt; B[pg_char_to_encoding]
+    B --&gt; C[clean_encoding_name]
+    C --&gt; D[二分查找 pg_encname_tbl]
+    A --&gt; E[PG_VALID_BE_ENCODING 宏]
+</code></pre><ul>
+<li>
+<p>pg_encname_tbl 是一个数组，里面罗列了所有Postgresql支持的字符集</p>
+</li>
+<li>
+<p>pg_char_to_encoding 通过验证，gbk在整体支持列表里，后面需验证是否支持 server 端字符集
+<img src="https://s2.loli.net/2025/06/20/uTd8XgL5shwABZ6.jpg" alt=""></p>
+</li>
+<li>
+<p>需要使用PG_VALID_BE_ENCODING(enc) 判断 server 端是否支持 gbk
+根据src/include/mb/pg_wchar.h 代码的定义，PG_GBK 只属于 client 支持的范围，server 端不支持。</p>
+</li>
+</ul>
+<pre tabindex="0"><code>	/* followings are for client encoding only */
+	PG_SJIS,					/* Shift JIS (Windows-932) */
+	PG_BIG5,					/* Big5 (Windows-950) */
+	PG_GBK,						/* GBK (Windows-936) */
+	PG_UHC,						/* UHC (Windows-949) */
+	PG_GB18030,					/* GB18030 */
+	PG_JOHAB,					/* EUC for Korean JOHAB */
+	PG_SHIFT_JIS_2004,			/* Shift-JIS-2004 */
+	_PG_LAST_ENCODING_			/* mark only */
+</code></pre><p><img src="https://s2.loli.net/2025/06/20/glcRVvM1aDBksi4.jpg" alt=""></p>
+<p>所以 Postgresql server 端不支持 GBK 字符集。</p>
+<pre tabindex="0"><code> create database gbk with encoding &#39;GBK&#39;;
+ERROR:  GBK is not a valid encoding name
+</code></pre><h2 id="opengauss-的server-端支持gbk字符集">opengauss 的server 端支持GBK字符集</h2>
+<pre tabindex="0"><code>从代码可以看出opengauss 做了修改支持了了GBK作为Server的字符集
+  src/include/mb/pg_wchar.h
+   // supports GBK for server encoding
+    PG_GBK,           /* GBK (Windows-936) */
+</code></pre><pre tabindex="0"><code>创建数据库语句
+openGauss=# CREATE DATABASE mydb WITH ENCODING &#39;GBK&#39; template = template0;
+</code></pre><h3 id="判断serveer端是否支持gbk">判断serveer端是否支持GBK</h3>
+<pre tabindex="0"><code>encoding = pg_valid_server_encoding(encoding_name)
+</code></pre><p><img src="https://s2.loli.net/2025/04/27/MKiH7eglZfsbjP3.png" alt="image-20250425183028892"></p>
+<h3 id="判断字符集是否兼容">判断字符集是否兼容</h3>
+<p>当前环境template0的字符集为UTF8</p>
+<pre tabindex="0"><code>openGauss=# \l      
+                               List of databases
+   Name    |   Owner   | Encoding | Collate |  Ctype  |    Access privileges    
+-----------+-----------+----------+---------+---------+-------------------------
+ postgres  | opengauss | UTF8     | C.UTF-8 | C.UTF-8 | 
+ template0 | opengauss | UTF8     | C.UTF-8 | C.UTF-8 | =c/opengauss           +
+           |           |          |         |         | opengauss=CTc/opengauss
+ template1 | opengauss | UTF8     | C.UTF-8 | C.UTF-8 | =c/opengauss           +
+           |           |          |         |         | opengauss=CTc/opengauss
+(3 rows)
+</code></pre><p>直接创建字符集会报兼容错误</p>
+<pre tabindex="0"><code>
+openGauss=# CREATE DATABASE mydb WITH ENCODING &#39;GBK&#39; template = template0;
+ERROR:  encoding &#34;GBK&#34; does not match locale &#34;C.UTF-8&#34;
+DETAIL:  The chosen LC_CTYPE setting requires encoding &#34;UTF8&#34;.
+</code></pre><p>指定locale 为GBK，创建成功</p>
+<pre tabindex="0"><code>openGauss=# CREATE DATABASE mydb WITH  ENCODING &#39;GBK&#39;    LC_COLLATE = &#39;zh_CN.gbk&#39;    LC_CTYPE = &#39;zh_CN.gbk&#39;;
+CREATE DATABASE
+openGauss=# \l
+                                 List of databases
+   Name    |   Owner   | Encoding |  Collate  |   Ctype   |    Access privileges    
+-----------+-----------+----------+-----------+-----------+-------------------------
+ mydb      | opengauss | GBK      | zh_CN.gbk | zh_CN.gbk | 
+ postgres  | opengauss | UTF8     | C.UTF-8   | C.UTF-8   | 
+ template0 | opengauss | UTF8     | C.UTF-8   | C.UTF-8   | =c/opengauss           +
+           |           |          |           |           | opengauss=CTc/opengauss
+ template1 | opengauss | UTF8     | C.UTF-8   | C.UTF-8   | =c/opengauss           +
+           |           |          |           |           | opengauss=CTc/opengauss
+</code></pre><h3 id="字符集转换">字符集转换</h3>
+<p>当server端和client 端不一致的情况下，opengauss会对client的输入按照server的字符集进行转换。比如client是UTF8，server是GBK，插入数据时会经过utf8_to_gbk 函数处理。</p>
+<pre tabindex="0"><code>mydb=# show client_encoding ;
+ client_encoding 
+-----------------
+ UTF8
+(1 row)
+
+mydb=# insert into t1 values(1,&#39;一&#39;);
+</code></pre><p><img src="https://s2.loli.net/2025/04/27/mZTKxJPwkdhA3VL.png" alt="image-20250426134930886"></p>
+<h2 id="总结">总结</h2>
+<p>在数据库领域，PostgreSQL作为一款强大且应用广泛的开源数据库，原本并不支持将GBK作为server端的字符集，这在一定程度上限制了其在部分对GBK字符集有特定需求场景下的应用，比如从Oracle的GBK字符集迁移到pg系国产数据库UTF8过程中，有时会遇到中文字符超出列的宽度问题 ，而在数据库国产化进程中，openGauss对这一限制进行了针对性修改，成功实现了对GBK作为server字符集的支持。尽管从功能革新的量级来看，这或许不算是一项具有颠覆性的重大改进，但它却精准地解决了实际应用中存在的痛点。 这种对细节的关注和完善，不仅提升了openGauss在字符集支持方面的灵活性与兼容性，也展现了国产化数据库在功能优化上的用心。</p>
+</section>
+
+  <nav
+    class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg leading-[1.2]! *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"
+  ><a class="ltr:pr-3 rtl:pl-3" href="http://localhost:1313/posts/db/opengauss/opengauss-%E5%A4%87%E4%BB%BD%E6%81%A2%E5%A4%8D%E5%AE%9E%E6%88%98%E4%B9%8Bgs_probackup%E5%B7%A5%E5%85%B7/"
+      ><span class="ltr:mr-1.5 rtl:ml-1.5">←</span><span>OpenGauss 备份恢复实战之gs_probackup工具</span></a
+    ><a
+      class="justify-end pl-3 ltr:ml-auto rtl:mr-auto"
+      href="http://localhost:1313/posts/db/opengauss/%E4%BB%8E%E6%95%B0%E6%8D%AE%E5%BA%93%E6%BA%90%E7%A0%81%E6%AF%94%E8%BE%83-postgresql%E5%92%8Copengauss%E7%9A%84%E5%90%AF%E5%8A%A8%E8%BF%87%E7%A8%8B/"
+      ><span>从数据库源码比较 PostgreSql和OpenGauss的启动过程</span><span class="ltr:ml-1.5 rtl:mr-1.5">→</span></a
+    ></nav></article></main><footer
+  class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
+>
+  <div class="mr-auto">&copy;2025
+    <a class="link" href="http://localhost:1313/">数据库的路上</a></div>
+</footer>
+</body>
+</html>

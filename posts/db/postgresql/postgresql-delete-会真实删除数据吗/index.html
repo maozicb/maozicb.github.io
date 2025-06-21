@@ -1,0 +1,235 @@
+<!doctype html>
+
+
+
+
+
+
+
+<html
+  class="not-ready lg:text-base"
+  style="--bg:#faf8f1"
+  lang="en-us"
+  dir="ltr"
+><head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, shrink-to-fit=no"
+  />
+
+  
+  <title>PostgreSQL DELETE 会真实删除数据吗 - 数据库的路上</title>
+
+  
+  <meta name="theme-color" />
+
+  <meta name="description" content="为测试逻辑简单，测试表无约束索引等其他附加项。
+test=# \d t1
+                           Table &#34;public.t1&#34;
+ Column |            Type             | Collation | Nullable | Default 
+--------&#43;-----------------------------&#43;-----------&#43;----------&#43;---------
+ id     | integer                     |           |          | 
+ time   | timestamp without time zone |           |          | 
+
+
+test=# delete from t1 where id=1;
+找到对应的数据行
+此过程类似select 逻辑，在此不详细展开
+删除数据行
+删除数据行的主要操作位于函数 heap_delete 之中。从其步骤可以看出，这里并没有如想象中那样的清除操作。（不妨脑补一下用橡皮擦进行作业的画面，哈哈。）
+
+事务提交 CommitTransaction(void)
+事务提交的主要操作如下：
+
+写入日志确保持久性
+事务提交时首先会写入 xlog 日志和 clog 日志，做到了在写入数据前先写入日志
+通知其他事务与更新状态
+在这个步骤中，会重置 ProcGlobal 里对应事务的 ID。此时，snapshot 能够立刻得知此事务不再执行中。同时，还会修改 TransamVariables 的最后事务号。由于 snapshot 依赖这个变量，所以在这一步骤中会获取 ProcArrayLock 的独占锁
+
+
+看不到删除数据的原理
+
+个人理解难免存在差错偏差，最准确完善的信息应参考源代码
+在 PostgreSQL 中，进行数据查询时，会首先申请一个 snapshot（快照），它就如同一个神奇的滤镜，能将可被看到的数据反馈给用户，同时把不可见的数据巧妙地隐藏起来。" />
+  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="http://localhost:1313/main.min.css" />
+
+  
+  <link rel="preload" as="image" href="http://localhost:1313/theme.png" />
+
+  
+
+  <link rel="preload" as="image" href="http://localhost:1313/github.svg" />
+
+  <script
+    defer
+    src="http://localhost:1313/highlight.min.js"
+    onload="hljs.initHighlightingOnLoad();"
+  ></script>
+
+  
+  <link
+    rel="icon"
+    href="http://localhost:1313/favicon.ico"
+  />
+  <link
+    rel="apple-touch-icon"
+    href="http://localhost:1313/apple-touch-icon.png"
+  />
+
+  <meta name="generator" content="Hugo 0.145.0">
+</head>
+<body
+    class="bg-(--bg) text-black antialiased duration-200 ease-out [-webkit-tap-highlight-color:transparent] dark:text-white"
+  ><header
+  class="mx-auto flex h-[4.5rem] max-w-(--w) px-8 whitespace-nowrap lg:justify-center"
+>
+  <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
+    <a
+      class="-translate-y-[1px] text-2xl font-medium"
+      href="http://localhost:1313/"
+      >数据库的路上</a
+    >
+    <div
+      class="btn-dark text-[0px] ltr:ml-4 rtl:mr-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]"
+      role="button"
+      aria-label="Dark"
+    ></div>
+  </div>
+
+  <div
+    class="btn-menu relative z-50 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden ltr:-mr-8 rtl:-ml-8"
+    role="button"
+    aria-label="Menu"
+  ></div>
+
+  <script>
+    
+    const htmlClass = document.documentElement.classList;
+    setTimeout(() => {
+      htmlClass.remove('not-ready');
+    }, 10);
+
+    
+    const btnMenu = document.querySelector('.btn-menu');
+    btnMenu.addEventListener('click', () => {
+      htmlClass.toggle('open');
+    });
+
+    
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    const lightBg = '#faf8f1'.replace(/"/g, '');
+    const setDark = (isDark) => {
+      metaTheme.setAttribute('content', isDark ? '#000' : lightBg);
+      htmlClass[isDark ? 'add' : 'remove']('dark');
+      localStorage.setItem('dark', isDark);
+    };
+
+    
+    const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    if (htmlClass.contains('dark')) {
+      setDark(true);
+    } else {
+      const darkVal = localStorage.getItem('dark');
+      setDark(darkVal ? darkVal === 'true' : darkScheme.matches);
+    }
+
+    
+    darkScheme.addEventListener('change', (event) => {
+      setDark(event.matches);
+    });
+
+    
+    const btnDark = document.querySelector('.btn-dark');
+    btnDark.addEventListener('click', () => {
+      setDark(localStorage.getItem('dark') !== 'true');
+    });
+  </script>
+
+  <div
+    class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full flex-col justify-center bg-(--bg) pb-16 duration-200 select-none lg:static lg:h-auto lg:flex-row lg:bg-transparent! lg:pb-0 lg:transition-none"
+  ><nav
+      class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"
+    ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/about/"
+        >About</a
+      ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/contact/"
+        >Contact</a
+      ></nav><nav
+      class="mt-12 flex justify-center space-x-10 lg:mt-0 lg:items-center ltr:lg:ml-14 rtl:space-x-reverse rtl:lg:mr-14 dark:invert"
+    >
+      <a
+        class="h-7 w-7 text-[0px] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6"
+        style="--url: url(./github.svg)"
+        href="https://github.com/maozicb"
+        target="_blank"
+        rel="me"
+      >github</a>
+    </nav>
+  </div>
+</header>
+<main
+      class="prose prose-neutral dark:prose-invert relative mx-auto min-h-[calc(100vh-9rem)] max-w-(--w) px-8 pt-14 pb-16"
+    ><article>
+  <header class="mb-14">
+    <h1 class="my-0! pb-2.5">PostgreSQL DELETE 会真实删除数据吗</h1><div class="text-xs antialiased opacity-60"><time>May 16, 2025</time></div></header>
+
+  <section><p>为测试逻辑简单，测试表无约束索引等其他附加项。</p>
+<pre tabindex="0"><code>test=# \d t1
+                           Table &#34;public.t1&#34;
+ Column |            Type             | Collation | Nullable | Default 
+--------+-----------------------------+-----------+----------+---------
+ id     | integer                     |           |          | 
+ time   | timestamp without time zone |           |          | 
+
+
+test=# delete from t1 where id=1;
+</code></pre><h2 id="找到对应的数据行">找到对应的数据行</h2>
+<p>此过程类似select 逻辑，在此不详细展开</p>
+<h2 id="删除数据行">删除数据行</h2>
+<p>删除数据行的主要操作位于函数 heap_delete 之中。从其步骤可以看出，这里并没有如想象中那样的清除操作。（不妨脑补一下用橡皮擦进行作业的画面，哈哈。）
+<img src="https://s2.loli.net/2024/09/25/Zu97Ad2eIzCwHBg.png" alt="delete1"></p>
+<h2 id="事务提交-committransactionvoid">事务提交 CommitTransaction(void)</h2>
+<p>事务提交的主要操作如下：</p>
+<ol>
+<li>写入日志确保持久性
+事务提交时首先会写入 xlog 日志和 clog 日志，做到了在写入数据前先写入日志</li>
+<li>通知其他事务与更新状态
+在这个步骤中，会重置 ProcGlobal 里对应事务的 ID。此时，snapshot 能够立刻得知此事务不再执行中。同时，还会修改 TransamVariables 的最后事务号。由于 snapshot 依赖这个变量，所以在这一步骤中会获取 ProcArrayLock 的独占锁</li>
+</ol>
+<p><img src="https://s2.loli.net/2024/09/25/uTv2Vl1DUoYzs9x.png" alt="commit1"></p>
+<h2 id="看不到删除数据的原理">看不到删除数据的原理</h2>
+<blockquote>
+<p>个人理解难免存在差错偏差，最准确完善的信息应参考源代码</p></blockquote>
+<p>在 PostgreSQL 中，进行数据查询时，会首先申请一个 snapshot（快照），它就如同一个神奇的滤镜，能将可被看到的数据反馈给用户，同时把不可见的数据巧妙地隐藏起来。</p>
+<p>在隔离级别为 Read Committed 时，数据被删除且事务提交后，对其他进程不可见。其实现原理主要依靠 snapshot。
+当一个进程获取到数据行后，会通过 HeapTupleSatisfiesMVCC (htup, snapshot, buffer) 函数来判断当前数据对自身是否可见。
+在 heap_delete 函数中，数据行的 informask 标记位被去除了 HEAP_XMAX_BITS（其中包含 HEAP_XMAX_INVALID 标记），仅剩下 HEAP_XMIN_COMMITTED 标记。
+而已提交的数据行如果只有 HEAP_XMIN_COMMITTED 标记，在 snapshot 中会被判断为对进程不可见，所以删除后的数据对其他进程不可见。</p>
+<p>综上所述，普通的删除操作仅仅是修改了数据行的头部标记信息，并未实际操作数据行的内容。数据的可见与不可见是通过 snapshot 来实现的。这样的设计既保证了数据的一致性和隔离性，又提高了数据库的性能和并发处理能力。通过巧妙地运用 snapshot 和标记位的管理，PostgreSQL 能够在不同的事务隔离级别下，为用户提供准确、可靠的数据视图。</p>
+<h2 id="什么时候数据会被真正删除">什么时候数据会被真正删除</h2>
+<blockquote>
+<p>VACUUM reclaims storage occupied by dead tuples. In normal PostgreSQL operation, tuples that are deleted or obsoleted by an update are not physically removed from their table; they remain present until a VACUUM is done. Therefore it&rsquo;s necessary to do VACUUM periodically, especially on frequently-updated tables.</p></blockquote>
+<p>参照官方的解释，数据会一直保存到 vacuum 执行。因此，有必要定期进行 VACUUM 操作，特别是在那些频繁更新的表上。这样可以确保数据库不会因为大量的死亡元组而浪费存储空间，同时也有助于提高数据库的性能和稳定性</p>
+</section>
+
+  <nav
+    class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg leading-[1.2]! *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"
+  ><a class="ltr:pr-3 rtl:pl-3" href="http://localhost:1313/posts/db/opengauss/opengauss_%E5%90%AF%E5%8A%A8%E9%9B%86%E7%BE%A4%E7%AB%9F%E9%9D%A0%E5%88%A0%E6%96%87%E4%BB%B6/"
+      ><span class="ltr:mr-1.5 rtl:ml-1.5">←</span><span>OpenGauss 启动集群竟靠删文件？这是什么「逆向操作」</span></a
+    ><a
+      class="justify-end pl-3 ltr:ml-auto rtl:mr-auto"
+      href="http://localhost:1313/posts/db/postgresql/postgresql-%E6%95%B0%E6%8D%AE%E5%BA%93-update-%E5%8E%9F%E7%90%86-%E5%92%8C-hot-%E6%8A%80%E6%9C%AF/"
+      ><span>Postgresql 数据库 UPDATE 原理 和 HOT 技术</span><span class="ltr:ml-1.5 rtl:mr-1.5">→</span></a
+    ></nav></article></main><footer
+  class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
+>
+  <div class="mr-auto">&copy;2025
+    <a class="link" href="http://localhost:1313/">数据库的路上</a></div>
+</footer>
+</body>
+</html>

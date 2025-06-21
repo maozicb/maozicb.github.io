@@ -1,0 +1,279 @@
+<!doctype html>
+
+
+
+
+
+
+
+<html
+  class="not-ready lg:text-base"
+  style="--bg:#faf8f1"
+  lang="en-us"
+  dir="ltr"
+><head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, shrink-to-fit=no"
+  />
+
+  
+  <title>Postgresql 数据库 UPDATE 原理 和 HOT 技术 - 数据库的路上</title>
+
+  
+  <meta name="theme-color" />
+
+  <meta name="description" content="测试环境和数据
+test=# \d t1
+                        Table &#34;public.t1&#34;
+ Column |          Type          | Collation | Nullable | Default 
+--------&#43;------------------------&#43;-----------&#43;----------&#43;---------
+ id     | integer                |           |          | 
+ name   | character varying(100) |           |          | 
+Indexes:
+    &#34;idx_t1&#34; btree (id)
+
+test=# select * from t1;
+ id | name  
+----&#43;-------
+  1 | test1
+(1 row)
+
+test=# update t1 set name=&#39;test2&#39; where id=1;
+UPDATE 执行过程
+
+读取旧值：首先读取要更新的行的当前值，这个值可能来自磁盘上的表或者数据库缓存。
+计算新值：根据UPDATE语句中的表达式计算出新的值。
+更新行：将新值写入到行中，如果是热更新，可能会通过修改行指针等方式进行优化更新；如果不是热更新，可能会创建一个新的行版本并插入到表中，同时更新相关的索引。
+
+
+update的核心逻辑存在于heap_update函数之中。在该函数的注释里有说明（replace a tuple），其作用是替换一个元组。也就是说，postgresql update是一种替换操作,新的元组替换旧的元组。
+heap_update 详细操作
+update 前期操作
+
+准备新值
+" />
+  <meta name="author" content="数据库的路上" /><link rel="preload stylesheet" as="style" href="http://localhost:1313/main.min.css" />
+
+  
+  <link rel="preload" as="image" href="http://localhost:1313/theme.png" />
+
+  
+
+  <link rel="preload" as="image" href="http://localhost:1313/github.svg" />
+
+  <script
+    defer
+    src="http://localhost:1313/highlight.min.js"
+    onload="hljs.initHighlightingOnLoad();"
+  ></script>
+
+  
+  <link
+    rel="icon"
+    href="http://localhost:1313/favicon.ico"
+  />
+  <link
+    rel="apple-touch-icon"
+    href="http://localhost:1313/apple-touch-icon.png"
+  />
+
+  <meta name="generator" content="Hugo 0.145.0">
+</head>
+<body
+    class="bg-(--bg) text-black antialiased duration-200 ease-out [-webkit-tap-highlight-color:transparent] dark:text-white"
+  ><header
+  class="mx-auto flex h-[4.5rem] max-w-(--w) px-8 whitespace-nowrap lg:justify-center"
+>
+  <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
+    <a
+      class="-translate-y-[1px] text-2xl font-medium"
+      href="http://localhost:1313/"
+      >数据库的路上</a
+    >
+    <div
+      class="btn-dark text-[0px] ltr:ml-4 rtl:mr-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]"
+      role="button"
+      aria-label="Dark"
+    ></div>
+  </div>
+
+  <div
+    class="btn-menu relative z-50 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden ltr:-mr-8 rtl:-ml-8"
+    role="button"
+    aria-label="Menu"
+  ></div>
+
+  <script>
+    
+    const htmlClass = document.documentElement.classList;
+    setTimeout(() => {
+      htmlClass.remove('not-ready');
+    }, 10);
+
+    
+    const btnMenu = document.querySelector('.btn-menu');
+    btnMenu.addEventListener('click', () => {
+      htmlClass.toggle('open');
+    });
+
+    
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    const lightBg = '#faf8f1'.replace(/"/g, '');
+    const setDark = (isDark) => {
+      metaTheme.setAttribute('content', isDark ? '#000' : lightBg);
+      htmlClass[isDark ? 'add' : 'remove']('dark');
+      localStorage.setItem('dark', isDark);
+    };
+
+    
+    const darkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    if (htmlClass.contains('dark')) {
+      setDark(true);
+    } else {
+      const darkVal = localStorage.getItem('dark');
+      setDark(darkVal ? darkVal === 'true' : darkScheme.matches);
+    }
+
+    
+    darkScheme.addEventListener('change', (event) => {
+      setDark(event.matches);
+    });
+
+    
+    const btnDark = document.querySelector('.btn-dark');
+    btnDark.addEventListener('click', () => {
+      setDark(localStorage.getItem('dark') !== 'true');
+    });
+  </script>
+
+  <div
+    class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full flex-col justify-center bg-(--bg) pb-16 duration-200 select-none lg:static lg:h-auto lg:flex-row lg:bg-transparent! lg:pb-0 lg:transition-none"
+  ><nav
+      class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"
+    ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/about/"
+        >About</a
+      ><a
+        class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal"
+        href="/contact/"
+        >Contact</a
+      ></nav><nav
+      class="mt-12 flex justify-center space-x-10 lg:mt-0 lg:items-center ltr:lg:ml-14 rtl:space-x-reverse rtl:lg:mr-14 dark:invert"
+    >
+      <a
+        class="h-7 w-7 text-[0px] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6"
+        style="--url: url(./github.svg)"
+        href="https://github.com/maozicb"
+        target="_blank"
+        rel="me"
+      >github</a>
+    </nav>
+  </div>
+</header>
+<main
+      class="prose prose-neutral dark:prose-invert relative mx-auto min-h-[calc(100vh-9rem)] max-w-(--w) px-8 pt-14 pb-16"
+    ><article>
+  <header class="mb-14">
+    <h1 class="my-0! pb-2.5">Postgresql 数据库 UPDATE 原理 和 HOT 技术</h1><div class="text-xs antialiased opacity-60"><time>May 16, 2025</time></div></header>
+
+  <section><h2 id="测试环境和数据">测试环境和数据</h2>
+<pre tabindex="0"><code>test=# \d t1
+                        Table &#34;public.t1&#34;
+ Column |          Type          | Collation | Nullable | Default 
+--------+------------------------+-----------+----------+---------
+ id     | integer                |           |          | 
+ name   | character varying(100) |           |          | 
+Indexes:
+    &#34;idx_t1&#34; btree (id)
+
+test=# select * from t1;
+ id | name  
+----+-------
+  1 | test1
+(1 row)
+
+test=# update t1 set name=&#39;test2&#39; where id=1;
+</code></pre><h2 id="update-执行过程">UPDATE 执行过程</h2>
+<ul>
+<li>读取旧值：首先读取要更新的行的当前值，这个值可能来自磁盘上的表或者数据库缓存。</li>
+<li>计算新值：根据UPDATE语句中的表达式计算出新的值。</li>
+<li>更新行：将新值写入到行中，如果是热更新，可能会通过修改行指针等方式进行优化更新；如果不是热更新，可能会创建一个新的行版本并插入到表中，同时更新相关的索引。</li>
+</ul>
+<p><img src="https://s2.loli.net/2024/10/18/9YHkBKrVF2CRXWs.png" alt="update1"></p>
+<p>update的核心逻辑存在于heap_update函数之中。在该函数的注释里有说明（replace a tuple），其作用是替换一个元组。也就是说，postgresql update是一种替换操作,新的元组替换旧的元组。</p>
+<h3 id="heap_update-详细操作">heap_update 详细操作</h3>
+<h4 id="update-前期操作">update 前期操作</h4>
+<p><img src="https://s2.loli.net/2024/10/18/AbfyZQziGY2ksoj.jpg" alt=""></p>
+<h4 id="准备新值">准备新值</h4>
+<p><img src="https://s2.loli.net/2024/10/18/7l8VKmdQwLH6O2r.jpg" alt=""></p>
+<p>新值的informask 标记会添加HEAP_UPDATED 标记，表示是update 操作</p>
+<pre tabindex="0"><code>newtup-&gt;t_data-&gt;t_infomask |= HEAP_UPDATED | infomask_new
+</code></pre><h4 id="使用-hot-技术实现-update">使用 HOT 技术实现 update</h4>
+<p>在 PostgreSQL 中，HOT（Heap-Only Tuples，仅堆元组）是一种用于提高数据库性能的技术。
+仅堆元组（Heap Only Tuple，HOT）特性消除了冗余的索引条目，并允许在不执行全表清理的情况下重新使用已删除或已过时的已更新元组所占用的空间。它通过允许单页清理来实现这一点，这种清理也被称为 “碎片整理” 或 “修剪”（详细参考backend/access/heap/README.HOT）</p>
+<p>如果新旧数据存放在一个 page 里， 且更新的数值不含索引列，则可以使用 HOT 技术。</p>
+<h5 id="观察旧值">观察旧值</h5>
+<p>当前测试表是新建的表且只有一行数据，update 过程中此数据行所在的 page 页会读入 buffer 里，我们来验证一下，当前 page 里有多少个数据行。
+heap_update 函数下面代码部分，是读入旧值到 buffer 里。</p>
+<pre tabindex="0"><code>buffer = ReadBuffer(relation, block);
+</code></pre><p><img src="https://s2.loli.net/2024/10/18/BIgm2WlYMDNdUHE.jpg" alt="">
+debug 时看到，此数据被读入到159号 buffer page 里了。
+查看这个 page里目前有多少个数据行,能看出只有 1 行数据，和测试数据吻合。
+<img src="https://s2.loli.net/2024/10/18/vKuFz8yPf6gRZQL.jpg" alt="">
+看看这行数据的属性，t_infomask 值为 2306。是几个16进制的的标记符组合而成的。（HEAP_XMAX_INVALID+HEAP_XMIN_COMMITTED+HEAP_HASVARWIDTH)
+<img src="https://s2.loli.net/2024/10/18/3NMcgYmH9KAdeJq.jpg" alt=""></p>
+<h5 id="观察新值">观察新值</h5>
+<pre><code>新值的infomask是HEAP_XMAX_INVALID+HEAP_UPDATED+HEAP_HASVARWIDTH，infomask2 里是2+0X8000（HEAP_ONLY_TUPLE），说明新值是通过 HOT 更新过来的，此时旧值Infomask2 会加上
+</code></pre>
+<p>HEAP_HOT_UPDATED 标记，表示已经被HOT更新过了。
+<img src="https://s2.loli.net/2024/10/18/xSLCjioIrzTOEB2.jpg" alt=""></p>
+<h4 id="存入新值到buffer-page-里">存入新值到buffer page 里</h4>
+<p><img src="https://s2.loli.net/2024/10/18/MucwY7o9iWKypJG.jpg" alt=""></p>
+<p>主要操作就是使用内存复制写入新值到指定内存位置</p>
+<pre tabindex="0"><code>memcpy((char *) page + upper, item, siz e);
+</code></pre><h4 id="设置旧值的属性">设置旧值的属性</h4>
+<p><img src="https://s2.loli.net/2024/10/18/4TqUA72YGzjVlNJ.jpg" alt=""></p>
+<p>其中比较重要的是</p>
+<ul>
+<li>设置xmax，这里面存储了该值update操作的事务号。</li>
+<li>设置旧值的ctid指向新值的ctid，这样旧值虽然没有被清除，但查询时还是会指向新值。</li>
+</ul>
+<h4 id="heap-update-操作后续操作">heap update 操作后续操作</h4>
+<ul>
+<li>
+<p>标记buffer 为脏页 ，checkpoint 时会写入到磁盘存储</p>
+</li>
+<li>
+<p>写入wal 日志</p>
+</li>
+<li>
+<p>解锁写入数据的buffer
+在buffer上有锁的这段时间，任何对这个buffer 上数据的操作都会阻塞。包括 select 查询数据，因为查询会对该 buffer 加上共享锁，与存在的排他锁冲突
+<img src="https://s2.loli.net/2024/10/18/tXAnEbKlc6RiGwj.jpg" alt=""></p>
+</li>
+<li>
+<p>操作结束，返回update操作结果</p>
+</li>
+</ul>
+</section>
+
+  <nav
+    class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg leading-[1.2]! *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"
+  ><a class="ltr:pr-3 rtl:pl-3" href="http://localhost:1313/posts/db/opengauss/opengauss_%E5%90%AF%E5%8A%A8%E9%9B%86%E7%BE%A4%E7%AB%9F%E9%9D%A0%E5%88%A0%E6%96%87%E4%BB%B6/"
+      ><span class="ltr:mr-1.5 rtl:ml-1.5">←</span><span>OpenGauss 启动集群竟靠删文件？这是什么「逆向操作」</span></a
+    ><a
+      class="justify-end pl-3 ltr:ml-auto rtl:mr-auto"
+      href="http://localhost:1313/posts/db/postgresql/postgresql-%E6%BA%90%E7%A0%81%E7%A0%94%E7%A9%B6%E4%B9%8B%E5%9F%BA%E7%A1%80%E5%A4%87%E4%BB%BD%E5%B7%A5%E5%85%B7pg_basebackup/"
+      ><span>Postgresql 源码研究之基础备份工具pg_basebackup</span><span class="ltr:ml-1.5 rtl:mr-1.5">→</span></a
+    ></nav></article></main><footer
+  class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
+>
+  <div class="mr-auto">&copy;2025
+    <a class="link" href="http://localhost:1313/">数据库的路上</a></div>
+</footer>
+</body>
+</html>
